@@ -1650,6 +1650,100 @@ function CentroPartida() {
         setErro("");
     }
 
+    function registrarScoutRapido(
+        resultado: ResultadoScout,
+        impacto: ImpactoPlacar,
+    ) {
+        if (
+            !partida ||
+            !setAtual ||
+            !atletaScoutId ||
+            !fundamentoScout
+        ) {
+            setErro(
+                "Selecione um atleta e um fundamento antes de registrar a ação.",
+            );
+
+            return;
+        }
+
+        const pontosEquipeAntes =
+            setAtual.pontosEquipe;
+
+        const pontosAdversarioAntes =
+            setAtual.pontosAdversario;
+
+        let pontosEquipeDepois =
+            pontosEquipeAntes;
+
+        let pontosAdversarioDepois =
+            pontosAdversarioAntes;
+
+        if (impacto === "PontoEquipe") {
+            pontosEquipeDepois += 1;
+        }
+
+        if (impacto === "PontoAdversario") {
+            pontosAdversarioDepois += 1;
+        }
+
+        const novoEvento: ScoutEvent = {
+            id: crypto.randomUUID(),
+
+            partidaId:
+                partida.id,
+
+            setId:
+                setAtual.id,
+
+            atletaId:
+                atletaScoutId,
+
+            fundamento:
+                fundamentoScout,
+
+            resultado,
+
+            impactoPlacar:
+                impacto,
+
+            posicaoQuadra:
+                buscarPosicaoAtleta(
+                    atletaScoutId,
+                ),
+
+            pontosEquipeAntes,
+            pontosAdversarioAntes,
+
+            pontosEquipeDepois,
+            pontosAdversarioDepois,
+
+            criadoEm:
+                new Date().toISOString(),
+        };
+
+        salvarScout([
+            ...scoutEvents,
+            novoEvento,
+        ]);
+
+        if (impacto === "PontoEquipe") {
+            aplicarAlteracaoPlacar(
+                "equipe",
+                1,
+            );
+        }
+
+        if (impacto === "PontoAdversario") {
+            aplicarAlteracaoPlacar(
+                "adversario",
+                1,
+            );
+        }
+
+        setErro("");
+    }
+
     /*
      * ============================================================
      * RENDERIZAÇÃO DA QUADRA
@@ -2541,6 +2635,179 @@ function CentroPartida() {
             </Paper>
 
             {/* SCOUT */}
+
+            <Box
+                sx={{
+                    mb: 4,
+                }}
+            >
+                <Typography
+                    variant="subtitle1"
+                    sx={{
+                        fontWeight: 700,
+                        mb: 1,
+                    }}
+                >
+                    Atletas
+                </Typography>
+
+                <Box
+                    sx={{
+                        display: "flex",
+                        gap: 1,
+                        flexWrap: "wrap",
+                        mb: 3,
+                    }}
+                >
+                    {atletasDisponiveisScout.map(
+                        (atleta) => (
+                            <Button
+                                key={atleta.id}
+                                variant={
+                                    atletaScoutId ===
+                                        atleta.id
+                                        ? "contained"
+                                        : "outlined"
+                                }
+                                onClick={() =>
+                                    setAtletaScoutId(
+                                        atleta.id,
+                                    )
+                                }
+                            >
+                                #{atleta.numero}{" "}
+                                {atleta.nome}
+                            </Button>
+                        ),
+                    )}
+                </Box>
+
+                <Typography
+                    variant="subtitle1"
+                    sx={{
+                        fontWeight: 700,
+                        mb: 1,
+                    }}
+                >
+                    Fundamento
+                </Typography>
+
+                <Box
+                    sx={{
+                        display: "flex",
+                        gap: 1,
+                        flexWrap: "wrap",
+                        mb: 3,
+                    }}
+                >
+                    {fundamentos.map(
+                        (fundamento) => (
+                            <Button
+                                key={fundamento}
+                                variant={
+                                    fundamentoScout ===
+                                        fundamento
+                                        ? "contained"
+                                        : "outlined"
+                                }
+                                onClick={() =>
+                                    setFundamentoScout(
+                                        fundamento,
+                                    )
+                                }
+                            >
+                                {fundamento}
+                            </Button>
+                        ),
+                    )}
+                </Box>
+
+                <Typography
+                    variant="subtitle1"
+                    sx={{
+                        fontWeight: 700,
+                        mb: 1,
+                    }}
+                >
+                    Resultado rápido
+                </Typography>
+
+                <Box
+                    sx={{
+                        display: "grid",
+                        gridTemplateColumns: {
+                            xs: "repeat(2, 1fr)",
+                            sm: "repeat(3, 1fr)",
+                            md: "repeat(5, 1fr)",
+                        },
+                        gap: 1,
+                    }}
+                >
+                    <Button
+                        variant="contained"
+                        color="success"
+                        onClick={() =>
+                            registrarScoutRapido(
+                                "Ponto",
+                                "PontoEquipe",
+                            )
+                        }
+                    >
+                        Ponto
+                    </Button>
+
+                    <Button
+                        variant="outlined"
+                        color="success"
+                        onClick={() =>
+                            registrarScoutRapido(
+                                "Positivo",
+                                "Nenhum",
+                            )
+                        }
+                    >
+                        Positivo
+                    </Button>
+
+                    <Button
+                        variant="outlined"
+                        onClick={() =>
+                            registrarScoutRapido(
+                                "Neutro",
+                                "Nenhum",
+                            )
+                        }
+                    >
+                        Neutro
+                    </Button>
+
+                    <Button
+                        variant="outlined"
+                        color="warning"
+                        onClick={() =>
+                            registrarScoutRapido(
+                                "Negativo",
+                                "Nenhum",
+                            )
+                        }
+                    >
+                        Negativo
+                    </Button>
+
+                    <Button
+                        variant="contained"
+                        color="error"
+                        onClick={() =>
+                            registrarScoutRapido(
+                                "Erro",
+                                "PontoAdversario",
+                            )
+                        }
+                    >
+                        Erro
+                    </Button>
+                </Box>
+            </Box>
 
             <Paper
                 sx={{
