@@ -41,6 +41,15 @@ import type {
     PosicaoQuadra,
 } from "../../types/Formacao";
 
+import type {
+    FundamentoScout,
+    ImpactoPlacar,
+    ResultadoScout,
+    ScoutEvent,
+} from "../../types/ScoutEvent";
+
+
+
 function CentroPartida() {
     const { partidaId } = useParams();
     const navigate = useNavigate();
@@ -49,13 +58,35 @@ function CentroPartida() {
     const [equipes, setEquipes] = useState<Equipe[]>([]);
     const [atletas, setAtletas] = useState<Atleta[]>([]);
     const [sets, setSets] = useState<SetPartida[]>([]);
-    const [escalacoes, setEscalacoes] = useState<EscalacaoPartida[]>([]);
-    const [formacoes, setFormacoes] = useState<Formacao[]>([]);
+    const [escalacoes, setEscalacoes] =
+        useState<EscalacaoPartida[]>([]);
+    const [formacoes, setFormacoes] =
+        useState<Formacao[]>([]);
+    const [scoutEvents, setScoutEvents] =
+        useState<ScoutEvent[]>([]);
+
+    const [atletaScoutId, setAtletaScoutId] =
+        useState("");
+
+    const [fundamentoScout, setFundamentoScout] =
+        useState<FundamentoScout | "">("");
+
+    const [resultadoScout, setResultadoScout] =
+        useState<ResultadoScout | "">("");
 
     const [escalacaoAtual, setEscalacaoAtual] =
         useState<AtletaEscalado[]>([]);
 
+    const [impactoPlacar, setImpactoPlacar] =
+        useState<ImpactoPlacar>("Nenhum");
+
     const [erro, setErro] = useState("");
+
+    /*
+     * ============================================================
+     * CARREGAMENTO
+     * ============================================================
+     */
 
     useEffect(() => {
         try {
@@ -77,20 +108,33 @@ function CentroPartida() {
             const formacoesSalvas =
                 localStorage.getItem("evolley-formacoes");
 
+            const scoutSalvo =
+                localStorage.getItem(
+                    "evolley-scout-events",
+                );
+
             if (partidasSalvas) {
-                setPartidas(JSON.parse(partidasSalvas));
+                setPartidas(
+                    JSON.parse(partidasSalvas),
+                );
             }
 
             if (equipesSalvas) {
-                setEquipes(JSON.parse(equipesSalvas));
+                setEquipes(
+                    JSON.parse(equipesSalvas),
+                );
             }
 
             if (atletasSalvos) {
-                setAtletas(JSON.parse(atletasSalvos));
+                setAtletas(
+                    JSON.parse(atletasSalvos),
+                );
             }
 
             if (setsSalvos) {
-                setSets(JSON.parse(setsSalvos));
+                setSets(
+                    JSON.parse(setsSalvos),
+                );
             }
 
             if (escalacoesSalvas) {
@@ -106,6 +150,13 @@ function CentroPartida() {
 
                 setFormacoes(dados);
             }
+
+            if (scoutSalvo) {
+                const dados: ScoutEvent[] =
+                    JSON.parse(scoutSalvo);
+
+                setScoutEvents(dados);
+            }
         } catch {
             setErro(
                 "Não foi possível carregar os dados da partida.",
@@ -113,10 +164,17 @@ function CentroPartida() {
         }
     }, []);
 
+    /*
+     * ============================================================
+     * DADOS DA PARTIDA
+     * ============================================================
+     */
+
     const partida = useMemo(
         () =>
             partidas.find(
-                (item) => item.id === partidaId,
+                (item) =>
+                    item.id === partidaId,
             ),
         [partidas, partidaId],
     );
@@ -124,7 +182,8 @@ function CentroPartida() {
     const equipe = useMemo(
         () =>
             equipes.find(
-                (item) => item.id === partida?.equipeId,
+                (item) =>
+                    item.id === partida?.equipeId,
             ),
         [equipes, partida],
     );
@@ -133,7 +192,8 @@ function CentroPartida() {
         () =>
             atletas.filter(
                 (atleta) =>
-                    atleta.equipeId === partida?.equipeId &&
+                    atleta.equipeId ===
+                    partida?.equipeId &&
                     atleta.ativo,
             ),
         [atletas, partida],
@@ -143,10 +203,13 @@ function CentroPartida() {
         () =>
             sets
                 .filter(
-                    (item) => item.partidaId === partidaId,
+                    (item) =>
+                        item.partidaId ===
+                        partidaId,
                 )
                 .sort(
-                    (a, b) => a.numero - b.numero,
+                    (a, b) =>
+                        a.numero - b.numero,
                 ),
         [sets, partidaId],
     );
@@ -154,7 +217,9 @@ function CentroPartida() {
     const setAtual = useMemo(
         () =>
             setsDaPartida.find(
-                (set) => set.status === "Em andamento",
+                (set) =>
+                    set.status ===
+                    "Em andamento",
             ),
         [setsDaPartida],
     );
@@ -162,7 +227,9 @@ function CentroPartida() {
     const escalacaoSalva = useMemo(
         () =>
             escalacoes.find(
-                (item) => item.partidaId === partidaId,
+                (item) =>
+                    item.partidaId ===
+                    partidaId,
             ),
         [escalacoes, partidaId],
     );
@@ -180,7 +247,9 @@ function CentroPartida() {
     const titulares = useMemo(
         () =>
             escalacaoAtual.filter(
-                (item) => item.funcao === "Titular",
+                (item) =>
+                    item.funcao ===
+                    "Titular",
             ),
         [escalacaoAtual],
     );
@@ -189,10 +258,78 @@ function CentroPartida() {
         () =>
             formacoes.find(
                 (formacao) =>
-                    formacao.setId === setAtual?.id,
+                    formacao.setId ===
+                    setAtual?.id,
             ),
         [formacoes, setAtual],
     );
+
+    /*
+     * ============================================================
+     * SCOUT
+     * ============================================================
+     */
+
+    const fundamentos: FundamentoScout[] = [
+        "Saque",
+        "Recepção",
+        "Ataque",
+        "Bloqueio",
+        "Defesa",
+        "Levantamento",
+    ];
+
+    const resultados: ResultadoScout[] = [
+        "Ponto",
+        "Positivo",
+        "Neutro",
+        "Negativo",
+        "Erro",
+    ];
+
+    const impactosPlacar: ImpactoPlacar[] = [
+        "Nenhum",
+        "PontoEquipe",
+        "PontoAdversario",
+    ];
+
+    const atletasDisponiveisScout =
+        useMemo(() => {
+            if (!escalacaoSalva) {
+                return [];
+            }
+
+            return escalacaoSalva.atletas
+                .map((item) =>
+                    atletas.find(
+                        (atleta) =>
+                            atleta.id ===
+                            item.atletaId,
+                    ),
+                )
+                .filter(
+                    (
+                        atleta,
+                    ): atleta is Atleta =>
+                        Boolean(atleta),
+                );
+        }, [escalacaoSalva, atletas]);
+
+    const eventosPartida = useMemo(
+        () =>
+            scoutEvents.filter(
+                (evento) =>
+                    evento.partidaId ===
+                    partidaId,
+            ),
+        [scoutEvents, partidaId],
+    );
+
+    /*
+     * ============================================================
+     * PERSISTÊNCIA
+     * ============================================================
+     */
 
     function salvarPartidas(
         novaLista: Partida[],
@@ -237,6 +374,23 @@ function CentroPartida() {
             JSON.stringify(novaLista),
         );
     }
+
+    function salvarScout(
+        novaLista: ScoutEvent[],
+    ) {
+        setScoutEvents(novaLista);
+
+        localStorage.setItem(
+            "evolley-scout-events",
+            JSON.stringify(novaLista),
+        );
+    }
+
+    /*
+     * ============================================================
+     * REGRAS DOS SETS
+     * ============================================================
+     */
 
     function quantidadeSetsParaVencer() {
         if (!partida) {
@@ -299,8 +453,10 @@ function CentroPartida() {
         const finalizados =
             lista.filter(
                 (set) =>
-                    set.partidaId === partidaId &&
-                    set.status === "Finalizado",
+                    set.partidaId ===
+                    partidaId &&
+                    set.status ===
+                    "Finalizado",
             );
 
         const equipeVenceu =
@@ -323,6 +479,12 @@ function CentroPartida() {
         };
     }
 
+    /*
+     * ============================================================
+     * PARTIDA
+     * ============================================================
+     */
+
     function iniciarPartida() {
         if (!partida) {
             return;
@@ -338,7 +500,8 @@ function CentroPartida() {
                         ...item,
                         status:
                             "Em andamento" as const,
-                        updatedAt: agora,
+                        updatedAt:
+                            agora,
                     }
                     : item,
             );
@@ -347,15 +510,20 @@ function CentroPartida() {
             partidasAtualizadas,
         );
 
-        if (setsDaPartida.length === 0) {
+        if (
+            setsDaPartida.length === 0
+        ) {
             const primeiroSet: SetPartida = {
                 id: crypto.randomUUID(),
-                partidaId: partida.id,
+                partidaId:
+                    partida.id,
                 numero: 1,
                 pontosEquipe: 0,
                 pontosAdversario: 0,
-                status: "Em andamento",
-                iniciadoEm: agora,
+                status:
+                    "Em andamento",
+                iniciadoEm:
+                    agora,
             };
 
             salvarSets([
@@ -408,141 +576,95 @@ function CentroPartida() {
         );
     }
 
-    function atualizarPonto(
-        lado:
-            | "equipe"
-            | "adversario",
+    function aplicarAlteracaoPlacar(
+        lado: "equipe" | "adversario",
         incremento: number,
     ) {
         if (
             !partida ||
             !setAtual ||
-            partida.status !==
-            "Em andamento"
+            partida.status !== "Em andamento"
         ) {
             return;
         }
 
-        const novosSets =
-            sets.map((set) => {
-                if (
-                    set.id !== setAtual.id
-                ) {
-                    return set;
-                }
+        const pontosEquipeDepois =
+            lado === "equipe"
+                ? Math.max(
+                    0,
+                    setAtual.pontosEquipe + incremento,
+                )
+                : setAtual.pontosEquipe;
 
-                const novosPontosEquipe =
-                    lado === "equipe"
-                        ? Math.max(
-                            0,
-                            set.pontosEquipe +
-                            incremento,
-                        )
-                        : set.pontosEquipe;
+        const pontosAdversarioDepois =
+            lado === "adversario"
+                ? Math.max(
+                    0,
+                    setAtual.pontosAdversario + incremento,
+                )
+                : setAtual.pontosAdversario;
 
-                const novosPontosAdversario =
-                    lado === "adversario"
-                        ? Math.max(
-                            0,
-                            set.pontosAdversario +
-                            incremento,
-                        )
-                        : set.pontosAdversario;
+        const agora = new Date().toISOString();
 
-                return {
+        const setsAtualizados = sets.map((set) =>
+            set.id === setAtual.id
+                ? {
                     ...set,
-                    pontosEquipe:
-                        novosPontosEquipe,
-                    pontosAdversario:
-                        novosPontosAdversario,
-                };
-            });
+                    pontosEquipe: pontosEquipeDepois,
+                    pontosAdversario: pontosAdversarioDepois,
+                }
+                : set,
+        );
 
-        const setAtualizado =
-            novosSets.find(
-                (set) =>
-                    set.id === setAtual.id,
-            );
-
-        if (!setAtualizado) {
-            return;
-        }
-
-        const terminou =
-            setTerminou(
-                setAtualizado.pontosEquipe,
-                setAtualizado.pontosAdversario,
-                setAtualizado.numero,
-            );
+        const terminou = setTerminou(
+            pontosEquipeDepois,
+            pontosAdversarioDepois,
+            setAtual.numero,
+        );
 
         if (!terminou) {
-            salvarSets(
-                novosSets,
-            );
-
+            salvarSets(setsAtualizados);
             return;
         }
 
-        const agora =
-            new Date().toISOString();
+        const setsFinalizados = setsAtualizados.map((set) =>
+            set.id === setAtual.id
+                ? {
+                    ...set,
+                    status: "Finalizado" as const,
+                    finalizadoEm: agora,
+                }
+                : set,
+        );
 
-        const setsComFinalizacao =
-            novosSets.map((set) =>
-                set.id === setAtualizado.id
-                    ? {
-                        ...set,
-                        status:
-                            "Finalizado" as const,
-                        finalizadoEm: agora,
-                    }
-                    : set,
-            );
-
-        const placar =
-            contarSetsVencidos(
-                setsComFinalizacao,
-            );
-
-        const setsNecessarios =
-            quantidadeSetsParaVencer();
+        const placar = contarSetsVencidos(setsFinalizados);
+        const setsNecessarios = quantidadeSetsParaVencer();
 
         const partidaTerminou =
-            placar.equipeVenceu >=
-            setsNecessarios ||
-            placar.adversarioVenceu >=
-            setsNecessarios;
+            placar.equipeVenceu >= setsNecessarios ||
+            placar.adversarioVenceu >= setsNecessarios;
 
         if (partidaTerminou) {
-            salvarSets(
-                setsComFinalizacao,
+            salvarSets(setsFinalizados);
+
+            const partidasAtualizadas = partidas.map((item) =>
+                item.id === partida.id
+                    ? {
+                        ...item,
+                        status: "Finalizada" as const,
+                        updatedAt: agora,
+                    }
+                    : item,
             );
 
-            const partidasAtualizadas =
-                partidas.map((item) =>
-                    item.id === partida.id
-                        ? {
-                            ...item,
-                            status:
-                                "Finalizada" as const,
-                            updatedAt: agora,
-                        }
-                        : item,
-                );
-
-            salvarPartidas(
-                partidasAtualizadas,
-            );
-
+            salvarPartidas(partidasAtualizadas);
             return;
         }
-
-        const proximoNumero =
-            setAtualizado.numero + 1;
 
         const novoSet: SetPartida = {
             id: crypto.randomUUID(),
             partidaId: partida.id,
-            numero: proximoNumero,
+            numero: setAtual.numero + 1,
             pontosEquipe: 0,
             pontosAdversario: 0,
             status: "Em andamento",
@@ -550,9 +672,257 @@ function CentroPartida() {
         };
 
         salvarSets([
-            ...setsComFinalizacao,
+            ...setsFinalizados,
             novoSet,
         ]);
+    }
+
+    function atualizarPonto(
+        lado: "equipe" | "adversario",
+        incremento: number,
+    ) {
+        aplicarAlteracaoPlacar(
+            lado,
+            incremento,
+        );
+    }
+
+
+    function voltarUltimoPonto(
+        lado: "equipe" | "adversario",
+    ) {
+        if (!partida) {
+            return;
+        }
+
+        const setsPartidaOrdenados = sets
+            .filter(
+                (set) =>
+                    set.partidaId === partida.id,
+            )
+            .sort(
+                (a, b) =>
+                    a.numero - b.numero,
+            );
+
+        if (setsPartidaOrdenados.length === 0) {
+            setErro(
+                "A partida ainda não possui sets.",
+            );
+            return;
+        }
+
+        /*
+         * Se um novo set foi criado em 0 x 0,
+         * a correção pertence ao set anterior.
+         */
+        let setParaCorrigir =
+            setsPartidaOrdenados[
+            setsPartidaOrdenados.length - 1
+            ];
+
+        if (
+            setParaCorrigir.pontosEquipe === 0 &&
+            setParaCorrigir.pontosAdversario === 0 &&
+            setParaCorrigir.numero > 1
+        ) {
+            setParaCorrigir =
+                setsPartidaOrdenados[
+                setsPartidaOrdenados.length - 2
+                ];
+        }
+
+        if (!setParaCorrigir) {
+            return;
+        }
+
+        if (
+            lado === "equipe" &&
+            setParaCorrigir.pontosEquipe === 0
+        ) {
+            setErro(
+                "A equipe não possui ponto para voltar.",
+            );
+            return;
+        }
+
+        if (
+            lado === "adversario" &&
+            setParaCorrigir.pontosAdversario === 0
+        ) {
+            setErro(
+                "O adversário não possui ponto para voltar.",
+            );
+            return;
+        }
+
+        /*
+         * Proteção: não apagamos um set posterior
+         * que já tenha começado de verdade.
+         */
+        const setsPosteriores =
+            setsPartidaOrdenados.filter(
+                (set) =>
+                    set.numero >
+                    setParaCorrigir.numero,
+            );
+
+        const idsSetsPosteriores =
+            new Set(
+                setsPosteriores.map(
+                    (set) => set.id,
+                ),
+            );
+
+        const existeAtividadePosterior =
+            setsPosteriores.some(
+                (set) =>
+                    set.pontosEquipe > 0 ||
+                    set.pontosAdversario > 0,
+            ) ||
+            scoutEvents.some(
+                (evento) =>
+                    idsSetsPosteriores.has(
+                        evento.setId,
+                    ),
+            );
+
+        if (existeAtividadePosterior) {
+            setErro(
+                "Não é possível voltar esse ponto porque o set seguinte já possui ações ou pontos registrados.",
+            );
+            return;
+        }
+
+        const novosPontosEquipe =
+            lado === "equipe"
+                ? Math.max(
+                    0,
+                    setParaCorrigir.pontosEquipe - 1,
+                )
+                : setParaCorrigir.pontosEquipe;
+
+        const novosPontosAdversario =
+            lado === "adversario"
+                ? Math.max(
+                    0,
+                    setParaCorrigir.pontosAdversario - 1,
+                )
+                : setParaCorrigir.pontosAdversario;
+
+        /*
+         * Remove o set seguinte vazio e reabre
+         * o set em que a arbitragem voltou o ponto.
+         */
+        const setsCorrigidos = sets
+            .filter(
+                (set) =>
+                    !(
+                        set.partidaId === partida.id &&
+                        set.numero >
+                        setParaCorrigir.numero
+                    ),
+            )
+            .map((set) =>
+                set.id === setParaCorrigir.id
+                    ? {
+                        ...set,
+                        pontosEquipe:
+                            novosPontosEquipe,
+                        pontosAdversario:
+                            novosPontosAdversario,
+                        status:
+                            "Em andamento" as const,
+                        finalizadoEm:
+                            undefined,
+                    }
+                    : set,
+            );
+
+        salvarSets(
+            setsCorrigidos,
+        );
+
+        /*
+         * Remove formações órfãs de sets vazios
+         * que foram eliminados pela correção.
+         */
+        if (idsSetsPosteriores.size > 0) {
+            salvarFormacoes(
+                formacoes.filter(
+                    (formacao) =>
+                        !idsSetsPosteriores.has(
+                            formacao.setId,
+                        ),
+                ),
+            );
+        }
+
+        /*
+         * Se o último ponto também foi registrado
+         * pelo Scout, removemos esse evento para
+         * manter estatística e placar sincronizados.
+         */
+        const impactoEsperado: ImpactoPlacar =
+            lado === "equipe"
+                ? "PontoEquipe"
+                : "PontoAdversario";
+
+        const eventosDoSet =
+            scoutEvents.filter(
+                (evento) =>
+                    evento.partidaId === partida.id &&
+                    evento.setId === setParaCorrigir.id,
+            );
+
+        const ultimoEventoDoSet =
+            eventosDoSet[
+            eventosDoSet.length - 1
+            ];
+
+        const eventoRepresentaPontoCorrigido =
+            ultimoEventoDoSet &&
+            ultimoEventoDoSet.impactoPlacar ===
+            impactoEsperado &&
+            ultimoEventoDoSet.pontosEquipeDepois ===
+            setParaCorrigir.pontosEquipe &&
+            ultimoEventoDoSet.pontosAdversarioDepois ===
+            setParaCorrigir.pontosAdversario;
+
+        if (eventoRepresentaPontoCorrigido) {
+            salvarScout(
+                scoutEvents.filter(
+                    (evento) =>
+                        evento.id !==
+                        ultimoEventoDoSet.id,
+                ),
+            );
+        }
+
+        /*
+         * Se o ponto havia encerrado a partida,
+         * a partida volta para Em andamento.
+         */
+        if (partida.status === "Finalizada") {
+            const agora =
+                new Date().toISOString();
+
+            salvarPartidas(
+                partidas.map((item) =>
+                    item.id === partida.id
+                        ? {
+                            ...item,
+                            status:
+                                "Em andamento" as const,
+                            updatedAt:
+                                agora,
+                        }
+                        : item,
+                ),
+            );
+        }
+
+        setErro("");
     }
 
     function encerrarPartida() {
@@ -570,7 +940,8 @@ function CentroPartida() {
                         ...item,
                         status:
                             "Finalizada" as const,
-                        updatedAt: agora,
+                        updatedAt:
+                            agora,
                     }
                     : item,
             );
@@ -579,6 +950,12 @@ function CentroPartida() {
             partidasAtualizadas,
         );
     }
+
+    /*
+     * ============================================================
+     * ESCALAÇÃO
+     * ============================================================
+     */
 
     function alternarAtleta(
         atletaId: string,
@@ -687,7 +1064,8 @@ function CentroPartida() {
         const titularesSelecionados =
             escalacaoAtual.filter(
                 (item) =>
-                    item.funcao === "Titular",
+                    item.funcao ===
+                    "Titular",
             );
 
         if (
@@ -706,17 +1084,20 @@ function CentroPartida() {
 
         if (escalacaoSalva) {
             const listaAtualizada =
-                escalacoes.map((item) =>
-                    item.id ===
-                        escalacaoSalva.id
-                        ? {
-                            ...item,
-                            atletas:
-                                escalacaoAtual,
-                            confirmada: true,
-                            updatedAt: agora,
-                        }
-                        : item,
+                escalacoes.map(
+                    (item) =>
+                        item.id ===
+                            escalacaoSalva.id
+                            ? {
+                                ...item,
+                                atletas:
+                                    escalacaoAtual,
+                                confirmada:
+                                    true,
+                                updatedAt:
+                                    agora,
+                            }
+                            : item,
                 );
 
             salvarEscalacoes(
@@ -728,14 +1109,18 @@ function CentroPartida() {
             return;
         }
 
-        const novaEscalacao: EscalacaoPartida = {
+        const novaEscalacao:
+            EscalacaoPartida = {
             id: crypto.randomUUID(),
-            partidaId: partida.id,
+            partidaId:
+                partida.id,
             atletas:
                 escalacaoAtual,
             confirmada: true,
-            createdAt: agora,
-            updatedAt: agora,
+            createdAt:
+                agora,
+            updatedAt:
+                agora,
         };
 
         salvarEscalacoes([
@@ -746,12 +1131,23 @@ function CentroPartida() {
         setErro("");
     }
 
+    /*
+     * ============================================================
+     * FORMAÇÃO
+     * ============================================================
+     */
+
     function criarFormacaoInicial() {
-        if (!partida || !setAtual) {
+        if (
+            !partida ||
+            !setAtual
+        ) {
             return;
         }
 
-        if (titulares.length !== 6) {
+        if (
+            titulares.length !== 6
+        ) {
             setErro(
                 "A formação exige exatamente 6 titulares.",
             );
@@ -769,7 +1165,10 @@ function CentroPartida() {
         const jogadores:
             JogadorEmQuadra[] =
             titulares.map(
-                (titular, indice) => ({
+                (
+                    titular,
+                    indice,
+                ) => ({
                     atletaId:
                         titular.atletaId,
                     posicao:
@@ -780,11 +1179,15 @@ function CentroPartida() {
 
         const novaFormacao: Formacao = {
             id: crypto.randomUUID(),
-            partidaId: partida.id,
-            setId: setAtual.id,
+            partidaId:
+                partida.id,
+            setId:
+                setAtual.id,
             jogadores,
-            createdAt: agora,
-            updatedAt: agora,
+            createdAt:
+                agora,
+            updatedAt:
+                agora,
         };
 
         salvarFormacoes([
@@ -806,15 +1209,17 @@ function CentroPartida() {
             new Date().toISOString();
 
         const listaAtualizada =
-            formacoes.map((formacao) =>
-                formacao.id ===
-                    formacaoAtual.id
-                    ? {
-                        ...formacao,
-                        jogadores,
-                        updatedAt: agora,
-                    }
-                    : formacao,
+            formacoes.map(
+                (formacao) =>
+                    formacao.id ===
+                        formacaoAtual.id
+                        ? {
+                            ...formacao,
+                            jogadores,
+                            updatedAt:
+                                agora,
+                        }
+                        : formacao,
             );
 
         salvarFormacoes(
@@ -969,64 +1374,287 @@ function CentroPartida() {
         );
     }
 
-    if (!partida && erro) {
-        return (
-            <>
-                <Alert
-                    severity="error"
-                    sx={{ mb: 2 }}
-                >
-                    {erro}
-                </Alert>
+    function buscarPosicaoAtleta(
+        atletaId: string,
+    ) {
+        return formacaoAtual?.jogadores.find(
+            (jogador) =>
+                jogador.atletaId ===
+                atletaId,
+        )?.posicao;
+    }
 
-                <Button
-                    onClick={() =>
-                        navigate("/jogos")
+    /*
+     * ============================================================
+     * REGISTRO DO SCOUT
+     * ============================================================
+     */
+
+    function registrarScout() {
+        if (
+            !partida ||
+            !setAtual ||
+            !atletaScoutId ||
+            !fundamentoScout ||
+            !resultadoScout
+        ) {
+            setErro(
+                "Selecione atleta, fundamento e resultado.",
+            );
+            return;
+        }
+
+        const pontosEquipeAntes = setAtual.pontosEquipe;
+        const pontosAdversarioAntes = setAtual.pontosAdversario;
+
+        let pontosEquipeDepois = pontosEquipeAntes;
+        let pontosAdversarioDepois = pontosAdversarioAntes;
+
+        if (impactoPlacar === "PontoEquipe") {
+            pontosEquipeDepois += 1;
+        }
+
+        if (impactoPlacar === "PontoAdversario") {
+            pontosAdversarioDepois += 1;
+        }
+
+        const novoEvento: ScoutEvent = {
+            id: crypto.randomUUID(),
+            partidaId: partida.id,
+            setId: setAtual.id,
+            atletaId: atletaScoutId,
+            fundamento: fundamentoScout,
+            resultado: resultadoScout,
+            impactoPlacar,
+            posicaoQuadra: buscarPosicaoAtleta(atletaScoutId),
+            pontosEquipeAntes,
+            pontosAdversarioAntes,
+            pontosEquipeDepois,
+            pontosAdversarioDepois,
+            criadoEm: new Date().toISOString(),
+        };
+
+        salvarScout([
+            ...scoutEvents,
+            novoEvento,
+        ]);
+
+        if (impactoPlacar === "PontoEquipe") {
+            aplicarAlteracaoPlacar(
+                "equipe",
+                1,
+            );
+        }
+
+        if (impactoPlacar === "PontoAdversario") {
+            aplicarAlteracaoPlacar(
+                "adversario",
+                1,
+            );
+        }
+
+        setFundamentoScout("");
+        setResultadoScout("");
+        setImpactoPlacar("Nenhum");
+        setErro("");
+    }
+
+    function desfazerUltimaAcao() {
+        if (!partida) {
+            return;
+        }
+
+        const eventosDaPartida = scoutEvents.filter(
+            (evento) =>
+                evento.partidaId === partida.id,
+        );
+
+        if (eventosDaPartida.length === 0) {
+            setErro(
+                "Não há ações para desfazer.",
+            );
+            return;
+        }
+
+        const ultimoEvento =
+            eventosDaPartida[
+            eventosDaPartida.length - 1
+            ];
+
+        const setDoEvento = sets.find(
+            (set) =>
+                set.id === ultimoEvento.setId,
+        );
+
+        if (!setDoEvento) {
+            setErro(
+                "Não foi possível localizar o set da última ação.",
+            );
+            return;
+        }
+
+        /*
+         * Recupera o placar anterior.
+         *
+         * Eventos novos possuem:
+         * pontosEquipeAntes
+         * pontosAdversarioAntes
+         *
+         * Para eventos antigos, calculamos o valor
+         * usando o placar atual e o impacto da ação.
+         */
+
+        let pontosEquipeAntes =
+            ultimoEvento.pontosEquipeAntes;
+
+        let pontosAdversarioAntes =
+            ultimoEvento.pontosAdversarioAntes;
+
+        if (
+            typeof pontosEquipeAntes !== "number"
+        ) {
+            pontosEquipeAntes =
+                ultimoEvento.impactoPlacar ===
+                    "PontoEquipe"
+                    ? Math.max(
+                        0,
+                        setDoEvento.pontosEquipe - 1,
+                    )
+                    : setDoEvento.pontosEquipe;
+        }
+
+        if (
+            typeof pontosAdversarioAntes !==
+            "number"
+        ) {
+            pontosAdversarioAntes =
+                ultimoEvento.impactoPlacar ===
+                    "PontoAdversario"
+                    ? Math.max(
+                        0,
+                        setDoEvento.pontosAdversario -
+                        1,
+                    )
+                    : setDoEvento.pontosAdversario;
+        }
+
+        /*
+         * Remove o evento do Scout.
+         */
+
+        const novaListaEventos =
+            scoutEvents.filter(
+                (evento) =>
+                    evento.id !==
+                    ultimoEvento.id,
+            );
+
+        salvarScout(
+            novaListaEventos,
+        );
+
+        /*
+         * Se a ação não alterou o placar,
+         * basta remover o evento.
+         */
+
+        if (
+            ultimoEvento.impactoPlacar ===
+            "Nenhum"
+        ) {
+            setErro("");
+            return;
+        }
+
+        /*
+         * Remove sets criados depois do
+         * ponto que está sendo desfeito.
+         *
+         * Exemplo:
+         *
+         * Set 1: 25 x 20
+         * Set 2: 0 x 0
+         *
+         * Ao desfazer:
+         *
+         * Set 2 é removido
+         * Set 1 volta para 24 x 20
+         */
+
+        const setsCorrigidos = sets
+            .filter(
+                (set) =>
+                    !(
+                        set.partidaId ===
+                        partida.id &&
+                        set.numero >
+                        setDoEvento.numero
+                    ),
+            )
+            .map((set) =>
+                set.id === setDoEvento.id
+                    ? {
+                        ...set,
+
+                        pontosEquipe:
+                            pontosEquipeAntes,
+
+                        pontosAdversario:
+                            pontosAdversarioAntes,
+
+                        status:
+                            "Em andamento" as const,
+
+                        finalizadoEm:
+                            undefined,
                     }
-                >
-                    Voltar para jogos
-                </Button>
-            </>
+                    : set,
+            );
+
+        salvarSets(
+            setsCorrigidos,
         );
+
+        /*
+         * Caso esse ponto tenha encerrado
+         * a partida, reabre a partida.
+         */
+
+        if (
+            partida.status ===
+            "Finalizada"
+        ) {
+            const agora =
+                new Date().toISOString();
+
+            const partidasAtualizadas =
+                partidas.map((item) =>
+                    item.id === partida.id
+                        ? {
+                            ...item,
+
+                            status:
+                                "Em andamento" as const,
+
+                            updatedAt:
+                                agora,
+                        }
+                        : item,
+                );
+
+            salvarPartidas(
+                partidasAtualizadas,
+            );
+        }
+
+        setErro("");
     }
 
-    if (!partida) {
-        return (
-            <Alert severity="warning">
-                Partida não encontrada.
-            </Alert>
-        );
-    }
-
-    const {
-        equipeVenceu:
-        setsVencidosEquipe,
-        adversarioVenceu:
-        setsVencidosAdversario,
-    } =
-        contarSetsVencidos(
-            setsDaPartida,
-        );
-
-    const ultimoSet =
-        setsDaPartida.length > 0
-            ? setsDaPartida[
-            setsDaPartida.length - 1
-            ]
-            : undefined;
-
-    const ultimoSetFinalizadoIncorretamente =
-        partida.status ===
-        "Em andamento" &&
-        !setAtual &&
-        ultimoSet &&
-        ultimoSet.status ===
-        "Finalizado" &&
-        !setTerminou(
-            ultimoSet.pontosEquipe,
-            ultimoSet.pontosAdversario,
-            ultimoSet.numero,
-        );
+    /*
+     * ============================================================
+     * RENDERIZAÇÃO DA QUADRA
+     * ============================================================
+     */
 
     const renderPosicaoQuadra = (
         posicao: PosicaoQuadra,
@@ -1100,8 +1728,12 @@ function CentroPartida() {
 
                                 return (
                                     <MenuItem
-                                        key={dados.id}
-                                        value={dados.id}
+                                        key={
+                                            dados.id
+                                        }
+                                        value={
+                                            dados.id
+                                        }
                                     >
                                         {dados.numero} ·{" "}
                                         {dados.nome}
@@ -1114,6 +1746,81 @@ function CentroPartida() {
             </Card>
         );
     };
+
+    /*
+     * ============================================================
+     * VALIDAÇÃO DA PARTIDA
+     * ============================================================
+     */
+
+    if (!partida && erro) {
+        return (
+            <>
+                <Alert
+                    severity="error"
+                    sx={{ mb: 2 }}
+                >
+                    {erro}
+                </Alert>
+
+                <Button
+                    onClick={() =>
+                        navigate(
+                            "/jogos",
+                        )
+                    }
+                >
+                    Voltar para jogos
+                </Button>
+            </>
+        );
+    }
+
+    if (!partida) {
+        return (
+            <Alert severity="warning">
+                Partida não encontrada.
+            </Alert>
+        );
+    }
+
+    const {
+        equipeVenceu:
+        setsVencidosEquipe,
+
+        adversarioVenceu:
+        setsVencidosAdversario,
+    } =
+        contarSetsVencidos(
+            setsDaPartida,
+        );
+
+    const ultimoSet =
+        setsDaPartida.length > 0
+            ? setsDaPartida[
+            setsDaPartida.length -
+            1
+            ]
+            : undefined;
+
+    const ultimoSetFinalizadoIncorretamente =
+        partida.status ===
+        "Em andamento" &&
+        !setAtual &&
+        ultimoSet &&
+        ultimoSet.status ===
+        "Finalizado" &&
+        !setTerminou(
+            ultimoSet.pontosEquipe,
+            ultimoSet.pontosAdversario,
+            ultimoSet.numero,
+        );
+
+    /*
+     * ============================================================
+     * INTERFACE
+     * ============================================================
+     */
 
     return (
         <>
@@ -1140,6 +1847,8 @@ function CentroPartida() {
                     {erro}
                 </Alert>
             )}
+
+            {/* CABEÇALHO */}
 
             <Paper
                 sx={{
@@ -1174,19 +1883,27 @@ function CentroPartida() {
                             {equipe?.nome ??
                                 "Equipe"}{" "}
                             x{" "}
-                            {partida.adversario}
+                            {
+                                partida.adversario
+                            }
                         </Typography>
 
                         <Typography
                             color="text.secondary"
                         >
-                            {partida.tipo} · Melhor
-                            de {partida.melhorDe} sets
+                            {partida.tipo} ·
+                            Melhor de{" "}
+                            {
+                                partida.melhorDe
+                            }{" "}
+                            sets
                         </Typography>
                     </Box>
 
                     <Chip
-                        label={partida.status}
+                        label={
+                            partida.status
+                        }
                         color={
                             partida.status ===
                                 "Em andamento"
@@ -1244,12 +1961,14 @@ function CentroPartida() {
                 </Box>
             </Paper>
 
+            {/* PLACAR DE SETS */}
+
             <Box
                 sx={{
                     display: "grid",
                     gridTemplateColumns: {
                         xs: "1fr",
-                        md: "repeat(3, 1fr)",
+                        md: "repeat(4, 1fr)",
                     },
                     gap: 2,
                     mb: 3,
@@ -1270,7 +1989,9 @@ function CentroPartida() {
                                 fontWeight: 700,
                             }}
                         >
-                            {setsVencidosEquipe}
+                            {
+                                setsVencidosEquipe
+                            }
                         </Typography>
                     </CardContent>
                 </Card>
@@ -1289,9 +2010,13 @@ function CentroPartida() {
                                 fontWeight: 700,
                             }}
                         >
-                            {setsVencidosEquipe}
-                            {" x "}
-                            {setsVencidosAdversario}
+                            {
+                                setsVencidosEquipe
+                            }{" "}
+                            x{" "}
+                            {
+                                setsVencidosAdversario
+                            }
                         </Typography>
                     </CardContent>
                 </Card>
@@ -1301,7 +2026,9 @@ function CentroPartida() {
                         <Typography
                             color="text.secondary"
                         >
-                            {partida.adversario}
+                            {
+                                partida.adversario
+                            }
                         </Typography>
 
                         <Typography
@@ -1310,11 +2037,92 @@ function CentroPartida() {
                                 fontWeight: 700,
                             }}
                         >
-                            {setsVencidosAdversario}
+                            {
+                                setsVencidosAdversario
+                            }
                         </Typography>
                     </CardContent>
                 </Card>
             </Box>
+
+
+            {/* CORREÇÃO DA ARBITRAGEM */}
+
+            <Paper
+                variant="outlined"
+                sx={{
+                    p: 2,
+                    mb: 3,
+                }}
+            >
+                <Box
+                    sx={{
+                        display: "flex",
+                        justifyContent:
+                            "space-between",
+                        alignItems: {
+                            xs: "flex-start",
+                            md: "center",
+                        },
+                        flexDirection: {
+                            xs: "column",
+                            md: "row",
+                        },
+                        gap: 2,
+                    }}
+                >
+                    <Box>
+                        <Typography
+                            sx={{
+                                fontWeight: 600,
+                            }}
+                        >
+                            Correção da arbitragem
+                        </Typography>
+
+                        <Typography
+                            variant="body2"
+                            color="text.secondary"
+                        >
+                            Utilize quando a arbitragem voltar o último ponto.
+                        </Typography>
+                    </Box>
+
+                    <Box
+                        sx={{
+                            display: "flex",
+                            gap: 1,
+                            flexWrap: "wrap",
+                        }}
+                    >
+                        <Button
+                            variant="outlined"
+                            color="warning"
+                            onClick={() =>
+                                voltarUltimoPonto(
+                                    "equipe",
+                                )
+                            }
+                        >
+                            Voltar ponto da equipe
+                        </Button>
+
+                        <Button
+                            variant="outlined"
+                            color="warning"
+                            onClick={() =>
+                                voltarUltimoPonto(
+                                    "adversario",
+                                )
+                            }
+                        >
+                            Voltar ponto do adversário
+                        </Button>
+                    </Box>
+                </Box>
+            </Paper>
+
+            {/* ESCALAÇÃO */}
 
             <Paper
                 sx={{
@@ -1352,8 +2160,10 @@ function CentroPartida() {
                         <Typography
                             color="text.secondary"
                         >
-                            Selecione os atletas que
-                            participarão da partida.
+                            Selecione os
+                            atletas que
+                            participarão da
+                            partida.
                         </Typography>
                     </Box>
 
@@ -1368,22 +2178,28 @@ function CentroPartida() {
                 {atletasDaEquipe.length ===
                     0 ? (
                     <Alert severity="warning">
-                        Esta equipe não possui
-                        atletas ativos.
+                        Esta equipe não
+                        possui atletas
+                        ativos.
                     </Alert>
                 ) : (
                     <>
                         <Box
                             sx={{
-                                display: "grid",
+                                display:
+                                    "grid",
                                 gap: 2,
                             }}
                         >
                             {atletasDaEquipe.map(
-                                (atleta) => {
+                                (
+                                    atleta,
+                                ) => {
                                     const atletaEscalado =
                                         escalacaoAtual.find(
-                                            (item) =>
+                                            (
+                                                item,
+                                            ) =>
                                                 item.atletaId ===
                                                 atleta.id,
                                         );
@@ -1395,12 +2211,16 @@ function CentroPartida() {
 
                                     return (
                                         <Paper
-                                            key={atleta.id}
+                                            key={
+                                                atleta.id
+                                            }
                                             variant="outlined"
                                             sx={{
                                                 p: 2,
-                                                display: "grid",
-                                                gridTemplateColumns: {
+                                                display:
+                                                    "grid",
+                                                gridTemplateColumns:
+                                                {
                                                     xs: "1fr",
                                                     md: "2fr 1fr auto auto",
                                                 },
@@ -1504,7 +2324,8 @@ function CentroPartida() {
                         <Box
                             sx={{
                                 mt: 3,
-                                display: "flex",
+                                display:
+                                    "flex",
                                 justifyContent:
                                     "flex-end",
                             }}
@@ -1527,6 +2348,8 @@ function CentroPartida() {
                     </>
                 )}
             </Paper>
+
+            {/* FORMAÇÃO */}
 
             <Paper
                 sx={{
@@ -1565,7 +2388,8 @@ function CentroPartida() {
                             color="text.secondary"
                         >
                             Organização dos seis
-                            titulares no set atual.
+                            titulares no set
+                            atual.
                         </Typography>
                     </Box>
 
@@ -1586,28 +2410,34 @@ function CentroPartida() {
 
                 {!setAtual ? (
                     <Alert severity="info">
-                        Inicie um set para montar
-                        a formação.
+                        Inicie um set para
+                        montar a formação.
                     </Alert>
-                ) : titulares.length !== 6 ? (
+                ) : titulares.length !==
+                    6 ? (
                     <Alert severity="warning">
                         Defina exatamente 6
                         titulares na escalação
-                        antes de montar a formação.
+                        antes de montar a
+                        formação.
                     </Alert>
                 ) : !formacaoAtual ? (
                     <Box
                         sx={{
-                            textAlign: "center",
+                            textAlign:
+                                "center",
                             py: 3,
                         }}
                     >
                         <Typography
                             color="text.secondary"
-                            sx={{ mb: 2 }}
+                            sx={{
+                                mb: 2,
+                            }}
                         >
-                            A formação inicial deste
-                            set ainda não foi criada.
+                            A formação inicial
+                            deste set ainda não
+                            foi criada.
                         </Typography>
 
                         <Button
@@ -1616,7 +2446,8 @@ function CentroPartida() {
                                 criarFormacaoInicial
                             }
                         >
-                            Montar formação inicial
+                            Montar formação
+                            inicial
                         </Button>
                     </Box>
                 ) : (
@@ -1624,7 +2455,8 @@ function CentroPartida() {
                         <Typography
                             align="center"
                             sx={{
-                                fontWeight: 700,
+                                fontWeight:
+                                    700,
                                 mb: 1,
                             }}
                         >
@@ -1642,8 +2474,10 @@ function CentroPartida() {
                         >
                             <Box
                                 sx={{
-                                    display: "grid",
-                                    gridTemplateColumns: {
+                                    display:
+                                        "grid",
+                                    gridTemplateColumns:
+                                    {
                                         xs: "1fr",
                                         md: "repeat(3, 1fr)",
                                     },
@@ -1651,28 +2485,48 @@ function CentroPartida() {
                                     mb: 2,
                                 }}
                             >
-                                {renderPosicaoQuadra(4)}
-                                {renderPosicaoQuadra(3)}
-                                {renderPosicaoQuadra(2)}
+                                {renderPosicaoQuadra(
+                                    4,
+                                )}
+
+                                {renderPosicaoQuadra(
+                                    3,
+                                )}
+
+                                {renderPosicaoQuadra(
+                                    2,
+                                )}
                             </Box>
 
                             <Divider
-                                sx={{ my: 3 }}
+                                sx={{
+                                    my: 3,
+                                }}
                             />
 
                             <Box
                                 sx={{
-                                    display: "grid",
-                                    gridTemplateColumns: {
+                                    display:
+                                        "grid",
+                                    gridTemplateColumns:
+                                    {
                                         xs: "1fr",
                                         md: "repeat(3, 1fr)",
                                     },
                                     gap: 2,
                                 }}
                             >
-                                {renderPosicaoQuadra(5)}
-                                {renderPosicaoQuadra(6)}
-                                {renderPosicaoQuadra(1)}
+                                {renderPosicaoQuadra(
+                                    5,
+                                )}
+
+                                {renderPosicaoQuadra(
+                                    6,
+                                )}
+
+                                {renderPosicaoQuadra(
+                                    1,
+                                )}
                             </Box>
                         </Box>
 
@@ -1686,30 +2540,366 @@ function CentroPartida() {
                 )}
             </Paper>
 
-            {ultimoSetFinalizadoIncorretamente && (
-                <Alert
-                    severity="warning"
-                    sx={{ mb: 3 }}
-                    action={
-                        <Button
-                            color="inherit"
-                            size="small"
-                            onClick={
-                                continuarSet
-                            }
-                        >
-                            Continuar set
-                        </Button>
-                    }
-                >
-                    O último set foi marcado como
-                    finalizado, mas o placar ainda
-                    não atende aos critérios de
-                    encerramento.
-                </Alert>
-            )}
+            {/* SCOUT */}
 
-            {setAtual &&
+            <Paper
+                sx={{
+                    p: 3,
+                    mb: 3,
+                }}
+            >
+                <Typography
+                    variant="h5"
+                    sx={{
+                        fontWeight: 700,
+                        mb: 1,
+                    }}
+                >
+                    Scout
+                </Typography>
+
+                <Typography
+                    color="text.secondary"
+                    sx={{
+                        mb: 3,
+                    }}
+                >
+                    Registre as ações dos atletas durante o set atual.
+                </Typography>
+
+                {!setAtual ? (
+                    <Alert severity="info">
+                        Inicie um set antes de registrar o scout.
+                    </Alert>
+                ) : !escalacaoSalva ? (
+                    <Alert severity="warning">
+                        Confirme a escalação antes de iniciar o scout.
+                    </Alert>
+                ) : (
+                    <>
+                        <Box
+                            sx={{
+                                display: "grid",
+                                gridTemplateColumns: {
+                                    xs: "1fr",
+                                    md: "repeat(4, 1fr)",
+                                },
+                                gap: 2,
+                            }}
+                        >
+                            {/* ATLETA */}
+
+                            <TextField
+                                select
+                                label="Atleta"
+                                value={atletaScoutId}
+                                onChange={(evento) =>
+                                    setAtletaScoutId(
+                                        evento.target.value,
+                                    )
+                                }
+                                fullWidth
+                            >
+                                {atletasDisponiveisScout.map(
+                                    (atleta) => (
+                                        <MenuItem
+                                            key={atleta.id}
+                                            value={atleta.id}
+                                        >
+                                            {atleta.numero} · {atleta.nome}
+                                        </MenuItem>
+                                    ),
+                                )}
+                            </TextField>
+
+                            {/* FUNDAMENTO */}
+
+                            <TextField
+                                select
+                                label="Fundamento"
+                                value={fundamentoScout}
+                                onChange={(evento) =>
+                                    setFundamentoScout(
+                                        evento.target
+                                            .value as FundamentoScout,
+                                    )
+                                }
+                                fullWidth
+                            >
+                                {fundamentos.map(
+                                    (fundamento) => (
+                                        <MenuItem
+                                            key={fundamento}
+                                            value={fundamento}
+                                        >
+                                            {fundamento}
+                                        </MenuItem>
+                                    ),
+                                )}
+                            </TextField>
+
+                            {/* RESULTADO */}
+
+                            <TextField
+                                select
+                                label="Resultado"
+                                value={resultadoScout}
+                                onChange={(evento) =>
+                                    setResultadoScout(
+                                        evento.target
+                                            .value as ResultadoScout,
+                                    )
+                                }
+                                fullWidth
+                            >
+                                {resultados.map(
+                                    (resultado) => (
+                                        <MenuItem
+                                            key={resultado}
+                                            value={resultado}
+                                        >
+                                            {resultado}
+                                        </MenuItem>
+                                    ),
+                                )}
+                            </TextField>
+
+                            {/* IMPACTO NO PLACAR */}
+
+                            <TextField
+                                select
+                                label="Impacto no placar"
+                                value={impactoPlacar}
+                                onChange={(evento) =>
+                                    setImpactoPlacar(
+                                        evento.target
+                                            .value as ImpactoPlacar,
+                                    )
+                                }
+                                fullWidth
+                            >
+                                {impactosPlacar.map(
+                                    (impacto) => (
+                                        <MenuItem
+                                            key={impacto}
+                                            value={impacto}
+                                        >
+                                            {impacto === "Nenhum"
+                                                ? "Não altera o placar"
+                                                : impacto ===
+                                                    "PontoEquipe"
+                                                    ? "Ponto da equipe"
+                                                    : "Ponto do adversário"}
+                                        </MenuItem>
+                                    ),
+                                )}
+                            </TextField>
+                        </Box>
+
+                        {/* AÇÕES */}
+
+                        <Box
+                            sx={{
+                                mt: 3,
+                                display: "flex",
+                                justifyContent:
+                                    "space-between",
+                                gap: 2,
+                                flexWrap: "wrap",
+                            }}
+                        >
+                            <Button
+                                variant="outlined"
+                                color="warning"
+                                onClick={
+                                    desfazerUltimaAcao
+                                }
+                                disabled={
+                                    eventosPartida.length ===
+                                    0
+                                }
+                            >
+                                Desfazer última ação
+                            </Button>
+
+                            <Button
+                                variant="contained"
+                                onClick={
+                                    registrarScout
+                                }
+                                disabled={
+                                    !atletaScoutId ||
+                                    !fundamentoScout ||
+                                    !resultadoScout
+                                }
+                            >
+                                Registrar ação
+                            </Button>
+                        </Box>
+                    </>
+                )}
+            </Paper>
+
+            {/* ÚLTIMAS AÇÕES */}
+
+            <Paper
+                variant="outlined"
+                sx={{
+                    p: 3,
+                    mb: 3,
+                }
+                }
+            >
+                <Typography
+                    variant="h6"
+                    sx={{
+                        fontWeight: 600,
+                        mb: 2,
+                    }}
+                >
+                    Últimas ações
+                </Typography>
+
+                {
+                    eventosPartida.length ===
+                        0 ? (
+                        <Typography
+                            color="text.secondary"
+                        >
+                            Nenhuma ação
+                            registrada.
+                        </Typography>
+                    ) : (
+                        <Box
+                            sx={{
+                                display: "grid",
+                                gap: 1,
+                            }}
+                        >
+                            {eventosPartida
+                                .slice(-10)
+                                .reverse()
+                                .map(
+                                    (
+                                        evento,
+                                    ) => {
+                                        const atleta =
+                                            buscarAtleta(
+                                                evento.atletaId,
+                                            );
+
+                                        return (
+                                            <Paper
+                                                key={
+                                                    evento.id
+                                                }
+                                                variant="outlined"
+                                                sx={{
+                                                    p: 2,
+                                                }}
+                                            >
+                                                <Box
+                                                    sx={{
+                                                        display:
+                                                            "flex",
+                                                        justifyContent:
+                                                            "space-between",
+                                                        alignItems:
+                                                            "center",
+                                                        gap: 2,
+                                                        flexWrap:
+                                                            "wrap",
+                                                    }}
+                                                >
+                                                    <Box>
+                                                        <Typography
+                                                            sx={{
+                                                                fontWeight:
+                                                                    600,
+                                                            }}
+                                                        >
+                                                            {atleta
+                                                                ? `${atleta.numero} · ${atleta.nome}`
+                                                                : "Atleta"}
+                                                        </Typography>
+
+                                                        <Typography
+                                                            color="text.secondary"
+                                                        >
+                                                            {
+                                                                evento.fundamento
+                                                            }{" "}
+                                                            ·{" "}
+                                                            {
+                                                                evento.resultado
+                                                            }
+                                                        </Typography>
+                                                    </Box>
+
+                                                    <Box
+                                                        sx={{
+                                                            display:
+                                                                "flex",
+                                                            gap: 1,
+                                                            flexWrap:
+                                                                "wrap",
+                                                        }}
+                                                    >
+                                                        {evento.posicaoQuadra && (
+                                                            <Chip
+                                                                size="small"
+                                                                label={`P${evento.posicaoQuadra}`}
+                                                            />
+                                                        )}
+
+                                                        <Chip
+                                                            size="small"
+                                                            variant="outlined"
+                                                            label={`${evento.pontosEquipeDepois} x ${evento.pontosAdversarioDepois}`}
+                                                        />
+                                                    </Box>
+                                                </Box>
+                                            </Paper>
+                                        );
+                                    },
+                                )}
+                        </Box>
+                    )
+                }
+            </Paper>
+
+            {/* SET INTERROMPIDO */}
+
+            {
+                ultimoSetFinalizadoIncorretamente && (
+                    <Alert
+                        severity="warning"
+                        sx={{ mb: 3 }}
+                        action={
+                            <Button
+                                color="inherit"
+                                size="small"
+                                onClick={
+                                    continuarSet
+                                }
+                            >
+                                Continuar set
+                            </Button>
+                        }
+                    >
+                        O último set foi marcado
+                        como finalizado, mas o
+                        placar ainda não atende
+                        aos critérios de
+                        encerramento.
+                    </Alert>
+                )
+            }
+
+            {/* PLACAR DO SET */}
+
+            {
+                setAtual &&
                 partida.status ===
                 "Em andamento" && (
                     <Paper
@@ -1722,27 +2912,35 @@ function CentroPartida() {
                             variant="h5"
                             align="center"
                             sx={{
-                                fontWeight: 700,
+                                fontWeight:
+                                    700,
                                 mb: 3,
                             }}
                         >
-                            Set {setAtual.numero}
+                            Set{" "}
+                            {
+                                setAtual.numero
+                            }
                         </Typography>
 
                         <Box
                             sx={{
-                                display: "grid",
-                                gridTemplateColumns: {
+                                display:
+                                    "grid",
+                                gridTemplateColumns:
+                                {
                                     xs: "1fr",
                                     md: "1fr auto 1fr",
                                 },
                                 gap: 3,
-                                alignItems: "center",
+                                alignItems:
+                                    "center",
                             }}
                         >
                             <Box
                                 sx={{
-                                    textAlign: "center",
+                                    textAlign:
+                                        "center",
                                 }}
                             >
                                 <Typography variant="h6">
@@ -1753,7 +2951,8 @@ function CentroPartida() {
                                 <Typography
                                     variant="h1"
                                     sx={{
-                                        fontWeight: 700,
+                                        fontWeight:
+                                            700,
                                         my: 2,
                                     }}
                                 >
@@ -1764,11 +2963,13 @@ function CentroPartida() {
 
                                 <Box
                                     sx={{
-                                        display: "flex",
+                                        display:
+                                            "flex",
                                         justifyContent:
                                             "center",
                                         gap: 1,
-                                        flexWrap: "wrap",
+                                        flexWrap:
+                                            "wrap",
                                     }}
                                 >
                                     <Button
@@ -1811,7 +3012,8 @@ function CentroPartida() {
                                 variant="h3"
                                 color="text.secondary"
                                 sx={{
-                                    textAlign: "center",
+                                    textAlign:
+                                        "center",
                                 }}
                             >
                                 ×
@@ -1819,7 +3021,8 @@ function CentroPartida() {
 
                             <Box
                                 sx={{
-                                    textAlign: "center",
+                                    textAlign:
+                                        "center",
                                 }}
                             >
                                 <Typography variant="h6">
@@ -1831,7 +3034,8 @@ function CentroPartida() {
                                 <Typography
                                     variant="h1"
                                     sx={{
-                                        fontWeight: 700,
+                                        fontWeight:
+                                            700,
                                         my: 2,
                                     }}
                                 >
@@ -1842,11 +3046,13 @@ function CentroPartida() {
 
                                 <Box
                                     sx={{
-                                        display: "flex",
+                                        display:
+                                            "flex",
                                         justifyContent:
                                             "center",
                                         gap: 1,
-                                        flexWrap: "wrap",
+                                        flexWrap:
+                                            "wrap",
                                     }}
                                 >
                                     <Button
@@ -1886,7 +3092,10 @@ function CentroPartida() {
                             </Box>
                         </Box>
                     </Paper>
-                )}
+                )
+            }
+
+            {/* HISTÓRICO */}
 
             <Paper
                 variant="outlined"
@@ -1909,33 +3118,41 @@ function CentroPartida() {
                     <Typography
                         color="text.secondary"
                     >
-                        A partida ainda não possui
-                        sets.
+                        A partida ainda não
+                        possui sets.
                     </Typography>
                 ) : (
                     <Box
                         sx={{
                             display: "flex",
                             gap: 2,
-                            flexWrap: "wrap",
+                            flexWrap:
+                                "wrap",
                         }}
                     >
                         {setsDaPartida.map(
                             (set) => (
                                 <Card
-                                    key={set.id}
+                                    key={
+                                        set.id
+                                    }
                                     variant="outlined"
                                     sx={{
-                                        minWidth: 160,
+                                        minWidth:
+                                            160,
                                     }}
                                 >
                                     <CardContent>
                                         <Typography
                                             sx={{
-                                                fontWeight: 600,
+                                                fontWeight:
+                                                    600,
                                             }}
                                         >
-                                            Set {set.numero}
+                                            Set{" "}
+                                            {
+                                                set.numero
+                                            }
                                         </Typography>
 
                                         <Typography
