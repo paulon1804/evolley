@@ -19,6 +19,8 @@ import SportsVolleyballIcon from "@mui/icons-material/SportsVolleyball";
 import AssessmentIcon from "@mui/icons-material/Assessment";
 import FitnessCenterIcon from "@mui/icons-material/FitnessCenter";
 import SettingsIcon from "@mui/icons-material/Settings";
+import FlashOnIcon from "@mui/icons-material/FlashOn";
+import HistoryIcon from "@mui/icons-material/History";
 
 import { NavLink, Outlet } from "react-router-dom";
 
@@ -46,6 +48,16 @@ const itensMenu = [
         icone: <SportsVolleyballIcon />,
     },
     {
+        texto: "Jogo Rápido",
+        caminho: "/jogo-rapido",
+        icone: <FlashOnIcon />,
+    },
+    {
+        texto: "Histórico Rápido",
+        caminho: "/jogos-rapidos/historico",
+        icone: <HistoryIcon />,
+    },
+    {
         texto: "Scout",
         caminho: "/scout",
         icone: <AssessmentIcon />,
@@ -70,16 +82,21 @@ function MainLayout() {
             <AppBar
                 position="fixed"
                 sx={{
-                    zIndex: (tema) => tema.zIndex.drawer + 1,
+                    zIndex: (tema) =>
+                        tema.zIndex.drawer + 1,
                 }}
             >
                 <Toolbar>
-                    <SportsVolleyballIcon sx={{ mr: 1 }} />
+                    <SportsVolleyballIcon
+                        sx={{ mr: 1 }}
+                    />
 
                     <Typography
                         variant="h6"
                         component="div"
-                        sx={{ fontWeight: 700 }}
+                        sx={{
+                            fontWeight: 700,
+                        }}
                     >
                         Evolley
                     </Typography>
@@ -94,36 +111,66 @@ function MainLayout() {
 
                     "& .MuiDrawer-paper": {
                         width: larguraMenu,
-                        boxSizing: "border-box",
+                        boxSizing:
+                            "border-box",
                     },
                 }}
             >
                 <Toolbar />
 
-                <Box sx={{ overflow: "auto" }}>
+                <Box
+                    sx={{
+                        overflow: "auto",
+                    }}
+                >
                     <List>
-                        {itensMenu.map((item) => (
-                            <ListItemButton
-                                key={item.caminho}
-                                component={NavLink}
-                                to={item.caminho}
-                                end={item.caminho === "/"}
-                                sx={{
-                                    "&.active": {
-                                        backgroundColor: "primary.main",
-                                        color: "primary.contrastText",
+                        {itensMenu.map(
+                            (item) => (
+                                <ListItemButton
+                                    key={
+                                        item.caminho
+                                    }
+                                    component={
+                                        NavLink
+                                    }
+                                    to={
+                                        item.caminho
+                                    }
+                                    end={
+                                        item.caminho ===
+                                        "/"
+                                    }
+                                    sx={{
+                                        "&.active":
+                                        {
+                                            backgroundColor:
+                                                "primary.main",
 
-                                        "& .MuiListItemIcon-root": {
-                                            color: "primary.contrastText",
+                                            color:
+                                                "primary.contrastText",
+
+                                            "& .MuiListItemIcon-root":
+                                            {
+                                                color:
+                                                    "primary.contrastText",
+                                            },
                                         },
-                                    },
-                                }}
-                            >
-                                <ListItemIcon>{item.icone}</ListItemIcon>
+                                    }}
+                                >
+                                    <ListItemIcon>
+                                        {
+                                            item.icone
+                                        }
+                                    </ListItemIcon>
 
-                                <ListItemText primary={item.texto} />
-                            </ListItemButton>
-                        ))}
+                                    <ListItemText
+                                        primary={
+                                            item.texto
+                                        }
+                                    />
+                                </ListItemButton>
+                            ),
+                        )}
                     </List>
 
                     <Divider />
@@ -135,7 +182,8 @@ function MainLayout() {
                 sx={{
                     flexGrow: 1,
                     minHeight: "100vh",
-                    backgroundColor: "background.default",
+                    backgroundColor:
+                        "background.default",
                     p: 3,
                 }}
             >

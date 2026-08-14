@@ -70,16 +70,8 @@ function CentroPartida() {
 
     const [fundamentoScout, setFundamentoScout] =
         useState<FundamentoScout | "">("");
-
-    const [resultadoScout, setResultadoScout] =
-        useState<ResultadoScout | "">("");
-
     const [escalacaoAtual, setEscalacaoAtual] =
         useState<AtletaEscalado[]>([]);
-
-    const [impactoPlacar, setImpactoPlacar] =
-        useState<ImpactoPlacar>("Nenhum");
-
     const [erro, setErro] = useState("");
 
     /*
@@ -279,19 +271,113 @@ function CentroPartida() {
         "Levantamento",
     ];
 
-    const resultados: ResultadoScout[] = [
-        "Ponto",
-        "Positivo",
-        "Neutro",
-        "Negativo",
-        "Erro",
-    ];
+    function resultadosPorFundamento(
+        fundamento: FundamentoScout,
+    ): ResultadoScout[] {
+        switch (fundamento) {
+            case "Saque":
+                return [
+                    "Ace",
+                    "Positivo",
+                    "Neutro",
+                    "Erro",
+                ];
 
-    const impactosPlacar: ImpactoPlacar[] = [
-        "Nenhum",
-        "PontoEquipe",
-        "PontoAdversario",
-    ];
+            case "Recepção":
+                return [
+                    "A",
+                    "B",
+                    "C",
+                    "Erro",
+                ];
+
+            case "Ataque":
+                return [
+                    "Ponto",
+                    "Positivo",
+                    "Neutro",
+                    "Negativo",
+                    "Erro",
+                ];
+
+            case "Bloqueio":
+                return [
+                    "Ponto",
+                    "Positivo",
+                    "Neutro",
+                    "Erro",
+                ];
+
+            case "Defesa":
+                return [
+                    "Positivo",
+                    "Neutro",
+                    "Negativo",
+                    "Erro",
+                ];
+
+            case "Levantamento":
+                return [
+                    "Positivo",
+                    "Neutro",
+                    "Negativo",
+                    "Erro",
+                ];
+
+            default:
+                return [];
+        }
+    }
+
+    function descobrirImpactoPlacar(
+        _fundamento: FundamentoScout,
+        resultado: ResultadoScout,
+    ): ImpactoPlacar {
+        if (
+            resultado === "Ponto" ||
+            resultado === "Ace"
+        ) {
+            return "PontoEquipe";
+        }
+
+        if (resultado === "Erro") {
+            return "PontoAdversario";
+        }
+
+        return "Nenhum";
+    }
+
+    function descricaoResultado(
+        fundamento: FundamentoScout,
+        resultado: ResultadoScout,
+    ) {
+        if (fundamento === "Recepção") {
+            switch (resultado) {
+                case "A":
+                    return "A · Passe ótimo";
+
+                case "B":
+                    return "B · Intermediário";
+
+                case "C":
+                    return "C · Passe ruim";
+
+                case "Erro":
+                    return "Erro";
+
+                default:
+                    return resultado;
+            }
+        }
+
+        return resultado;
+    }
+
+    function selecionarFundamento(
+        fundamento: FundamentoScout,
+    ) {
+        setFundamentoScout(fundamento);
+    }
 
     const atletasDisponiveisScout =
         useMemo(() => {
@@ -1390,75 +1476,6 @@ function CentroPartida() {
      * ============================================================
      */
 
-    function registrarScout() {
-        if (
-            !partida ||
-            !setAtual ||
-            !atletaScoutId ||
-            !fundamentoScout ||
-            !resultadoScout
-        ) {
-            setErro(
-                "Selecione atleta, fundamento e resultado.",
-            );
-            return;
-        }
-
-        const pontosEquipeAntes = setAtual.pontosEquipe;
-        const pontosAdversarioAntes = setAtual.pontosAdversario;
-
-        let pontosEquipeDepois = pontosEquipeAntes;
-        let pontosAdversarioDepois = pontosAdversarioAntes;
-
-        if (impactoPlacar === "PontoEquipe") {
-            pontosEquipeDepois += 1;
-        }
-
-        if (impactoPlacar === "PontoAdversario") {
-            pontosAdversarioDepois += 1;
-        }
-
-        const novoEvento: ScoutEvent = {
-            id: crypto.randomUUID(),
-            partidaId: partida.id,
-            setId: setAtual.id,
-            atletaId: atletaScoutId,
-            fundamento: fundamentoScout,
-            resultado: resultadoScout,
-            impactoPlacar,
-            posicaoQuadra: buscarPosicaoAtleta(atletaScoutId),
-            pontosEquipeAntes,
-            pontosAdversarioAntes,
-            pontosEquipeDepois,
-            pontosAdversarioDepois,
-            criadoEm: new Date().toISOString(),
-        };
-
-        salvarScout([
-            ...scoutEvents,
-            novoEvento,
-        ]);
-
-        if (impactoPlacar === "PontoEquipe") {
-            aplicarAlteracaoPlacar(
-                "equipe",
-                1,
-            );
-        }
-
-        if (impactoPlacar === "PontoAdversario") {
-            aplicarAlteracaoPlacar(
-                "adversario",
-                1,
-            );
-        }
-
-        setFundamentoScout("");
-        setResultadoScout("");
-        setImpactoPlacar("Nenhum");
-        setErro("");
-    }
-
     function desfazerUltimaAcao() {
         if (!partida) {
             return;
@@ -1652,20 +1669,36 @@ function CentroPartida() {
 
     function registrarScoutRapido(
         resultado: ResultadoScout,
-        impacto: ImpactoPlacar,
     ) {
         if (
             !partida ||
-            !setAtual ||
-            !atletaScoutId ||
-            !fundamentoScout
+            !setAtual
         ) {
             setErro(
-                "Selecione um atleta e um fundamento antes de registrar a ação.",
+                "Não existe um set em andamento.",
             );
-
             return;
         }
+
+        if (!atletaScoutId) {
+            setErro(
+                "Selecione um atleta.",
+            );
+            return;
+        }
+
+        if (!fundamentoScout) {
+            setErro(
+                "Selecione um fundamento.",
+            );
+            return;
+        }
+
+        const impacto =
+            descobrirImpactoPlacar(
+                fundamentoScout,
+                resultado,
+            );
 
         const pontosEquipeAntes =
             setAtual.pontosEquipe;
@@ -1683,41 +1716,28 @@ function CentroPartida() {
             pontosEquipeDepois += 1;
         }
 
-        if (impacto === "PontoAdversario") {
+        if (
+            impacto === "PontoAdversario"
+        ) {
             pontosAdversarioDepois += 1;
         }
 
         const novoEvento: ScoutEvent = {
             id: crypto.randomUUID(),
-
-            partidaId:
-                partida.id,
-
-            setId:
-                setAtual.id,
-
-            atletaId:
-                atletaScoutId,
-
-            fundamento:
-                fundamentoScout,
-
+            partidaId: partida.id,
+            setId: setAtual.id,
+            atletaId: atletaScoutId,
+            fundamento: fundamentoScout,
             resultado,
-
-            impactoPlacar:
-                impacto,
-
+            impactoPlacar: impacto,
             posicaoQuadra:
                 buscarPosicaoAtleta(
                     atletaScoutId,
                 ),
-
             pontosEquipeAntes,
             pontosAdversarioAntes,
-
             pontosEquipeDepois,
             pontosAdversarioDepois,
-
             criadoEm:
                 new Date().toISOString(),
         };
@@ -1727,14 +1747,18 @@ function CentroPartida() {
             novoEvento,
         ]);
 
-        if (impacto === "PontoEquipe") {
+        if (
+            impacto === "PontoEquipe"
+        ) {
             aplicarAlteracaoPlacar(
                 "equipe",
                 1,
             );
         }
 
-        if (impacto === "PontoAdversario") {
+        if (
+            impacto === "PontoAdversario"
+        ) {
             aplicarAlteracaoPlacar(
                 "adversario",
                 1,
@@ -2634,180 +2658,7 @@ function CentroPartida() {
                 )}
             </Paper>
 
-            {/* SCOUT */}
-
-            <Box
-                sx={{
-                    mb: 4,
-                }}
-            >
-                <Typography
-                    variant="subtitle1"
-                    sx={{
-                        fontWeight: 700,
-                        mb: 1,
-                    }}
-                >
-                    Atletas
-                </Typography>
-
-                <Box
-                    sx={{
-                        display: "flex",
-                        gap: 1,
-                        flexWrap: "wrap",
-                        mb: 3,
-                    }}
-                >
-                    {atletasDisponiveisScout.map(
-                        (atleta) => (
-                            <Button
-                                key={atleta.id}
-                                variant={
-                                    atletaScoutId ===
-                                        atleta.id
-                                        ? "contained"
-                                        : "outlined"
-                                }
-                                onClick={() =>
-                                    setAtletaScoutId(
-                                        atleta.id,
-                                    )
-                                }
-                            >
-                                #{atleta.numero}{" "}
-                                {atleta.nome}
-                            </Button>
-                        ),
-                    )}
-                </Box>
-
-                <Typography
-                    variant="subtitle1"
-                    sx={{
-                        fontWeight: 700,
-                        mb: 1,
-                    }}
-                >
-                    Fundamento
-                </Typography>
-
-                <Box
-                    sx={{
-                        display: "flex",
-                        gap: 1,
-                        flexWrap: "wrap",
-                        mb: 3,
-                    }}
-                >
-                    {fundamentos.map(
-                        (fundamento) => (
-                            <Button
-                                key={fundamento}
-                                variant={
-                                    fundamentoScout ===
-                                        fundamento
-                                        ? "contained"
-                                        : "outlined"
-                                }
-                                onClick={() =>
-                                    setFundamentoScout(
-                                        fundamento,
-                                    )
-                                }
-                            >
-                                {fundamento}
-                            </Button>
-                        ),
-                    )}
-                </Box>
-
-                <Typography
-                    variant="subtitle1"
-                    sx={{
-                        fontWeight: 700,
-                        mb: 1,
-                    }}
-                >
-                    Resultado rápido
-                </Typography>
-
-                <Box
-                    sx={{
-                        display: "grid",
-                        gridTemplateColumns: {
-                            xs: "repeat(2, 1fr)",
-                            sm: "repeat(3, 1fr)",
-                            md: "repeat(5, 1fr)",
-                        },
-                        gap: 1,
-                    }}
-                >
-                    <Button
-                        variant="contained"
-                        color="success"
-                        onClick={() =>
-                            registrarScoutRapido(
-                                "Ponto",
-                                "PontoEquipe",
-                            )
-                        }
-                    >
-                        Ponto
-                    </Button>
-
-                    <Button
-                        variant="outlined"
-                        color="success"
-                        onClick={() =>
-                            registrarScoutRapido(
-                                "Positivo",
-                                "Nenhum",
-                            )
-                        }
-                    >
-                        Positivo
-                    </Button>
-
-                    <Button
-                        variant="outlined"
-                        onClick={() =>
-                            registrarScoutRapido(
-                                "Neutro",
-                                "Nenhum",
-                            )
-                        }
-                    >
-                        Neutro
-                    </Button>
-
-                    <Button
-                        variant="outlined"
-                        color="warning"
-                        onClick={() =>
-                            registrarScoutRapido(
-                                "Negativo",
-                                "Nenhum",
-                            )
-                        }
-                    >
-                        Negativo
-                    </Button>
-
-                    <Button
-                        variant="contained"
-                        color="error"
-                        onClick={() =>
-                            registrarScoutRapido(
-                                "Erro",
-                                "PontoAdversario",
-                            )
-                        }
-                    >
-                        Erro
-                    </Button>
-                </Box>
-            </Box>
+            {/* SCOUT RÁPIDO */}
 
             <Paper
                 sx={{
@@ -2815,24 +2666,48 @@ function CentroPartida() {
                     mb: 3,
                 }}
             >
-                <Typography
-                    variant="h5"
+                <Box
                     sx={{
-                        fontWeight: 700,
-                        mb: 1,
-                    }}
-                >
-                    Scout
-                </Typography>
-
-                <Typography
-                    color="text.secondary"
-                    sx={{
+                        display: "flex",
+                        justifyContent:
+                            "space-between",
+                        alignItems: {
+                            xs: "flex-start",
+                            md: "center",
+                        },
+                        flexDirection: {
+                            xs: "column",
+                            md: "row",
+                        },
+                        gap: 2,
                         mb: 3,
                     }}
                 >
-                    Registre as ações dos atletas durante o set atual.
-                </Typography>
+                    <Box>
+                        <Typography
+                            variant="h5"
+                            sx={{
+                                fontWeight: 700,
+                            }}
+                        >
+                            Scout rápido
+                        </Typography>
+
+                        <Typography
+                            color="text.secondary"
+                        >
+                            Selecione atleta, fundamento e resultado.
+                        </Typography>
+                    </Box>
+
+                    {setAtual && (
+                        <Chip
+                            label={`Set ${setAtual.numero} · ${setAtual.pontosEquipe} x ${setAtual.pontosAdversario}`}
+                            color="primary"
+                            variant="outlined"
+                        />
+                    )}
+                </Box>
 
                 {!setAtual ? (
                     <Alert severity="info">
@@ -2844,126 +2719,199 @@ function CentroPartida() {
                     </Alert>
                 ) : (
                     <>
+                        <Typography
+                            variant="subtitle1"
+                            sx={{
+                                fontWeight: 700,
+                                mb: 1,
+                            }}
+                        >
+                            1. Atleta
+                        </Typography>
+
+                        <Box
+                            sx={{
+                                display: "flex",
+                                gap: 1,
+                                flexWrap: "wrap",
+                                mb: 4,
+                            }}
+                        >
+                            {atletasDisponiveisScout.map(
+                                (atleta) => {
+                                    const selecionado =
+                                        atletaScoutId ===
+                                        atleta.id;
+
+                                    const posicao =
+                                        buscarPosicaoAtleta(
+                                            atleta.id,
+                                        );
+
+                                    return (
+                                        <Button
+                                            key={
+                                                atleta.id
+                                            }
+                                            variant={
+                                                selecionado
+                                                    ? "contained"
+                                                    : "outlined"
+                                            }
+                                            onClick={() =>
+                                                setAtletaScoutId(
+                                                    atleta.id,
+                                                )
+                                            }
+                                            sx={{
+                                                minHeight: 52,
+                                                px: 2,
+                                            }}
+                                        >
+                                            #{atleta.numero}{" "}
+                                            {atleta.nome}
+                                            {posicao
+                                                ? ` · P${posicao}`
+                                                : ""}
+                                        </Button>
+                                    );
+                                },
+                            )}
+                        </Box>
+
+                        <Divider
+                            sx={{ mb: 3 }}
+                        />
+
+                        <Typography
+                            variant="subtitle1"
+                            sx={{
+                                fontWeight: 700,
+                                mb: 1,
+                            }}
+                        >
+                            2. Fundamento
+                        </Typography>
+
                         <Box
                             sx={{
                                 display: "grid",
                                 gridTemplateColumns: {
-                                    xs: "1fr",
-                                    md: "repeat(4, 1fr)",
+                                    xs: "repeat(2, 1fr)",
+                                    sm: "repeat(3, 1fr)",
+                                    md: "repeat(6, 1fr)",
                                 },
-                                gap: 2,
+                                gap: 1,
+                                mb: 4,
                             }}
                         >
-                            {/* ATLETA */}
-
-                            <TextField
-                                select
-                                label="Atleta"
-                                value={atletaScoutId}
-                                onChange={(evento) =>
-                                    setAtletaScoutId(
-                                        evento.target.value,
-                                    )
-                                }
-                                fullWidth
-                            >
-                                {atletasDisponiveisScout.map(
-                                    (atleta) => (
-                                        <MenuItem
-                                            key={atleta.id}
-                                            value={atleta.id}
-                                        >
-                                            {atleta.numero} · {atleta.nome}
-                                        </MenuItem>
-                                    ),
-                                )}
-                            </TextField>
-
-                            {/* FUNDAMENTO */}
-
-                            <TextField
-                                select
-                                label="Fundamento"
-                                value={fundamentoScout}
-                                onChange={(evento) =>
-                                    setFundamentoScout(
-                                        evento.target
-                                            .value as FundamentoScout,
-                                    )
-                                }
-                                fullWidth
-                            >
-                                {fundamentos.map(
-                                    (fundamento) => (
-                                        <MenuItem
-                                            key={fundamento}
-                                            value={fundamento}
-                                        >
-                                            {fundamento}
-                                        </MenuItem>
-                                    ),
-                                )}
-                            </TextField>
-
-                            {/* RESULTADO */}
-
-                            <TextField
-                                select
-                                label="Resultado"
-                                value={resultadoScout}
-                                onChange={(evento) =>
-                                    setResultadoScout(
-                                        evento.target
-                                            .value as ResultadoScout,
-                                    )
-                                }
-                                fullWidth
-                            >
-                                {resultados.map(
-                                    (resultado) => (
-                                        <MenuItem
-                                            key={resultado}
-                                            value={resultado}
-                                        >
-                                            {resultado}
-                                        </MenuItem>
-                                    ),
-                                )}
-                            </TextField>
-
-                            {/* IMPACTO NO PLACAR */}
-
-                            <TextField
-                                select
-                                label="Impacto no placar"
-                                value={impactoPlacar}
-                                onChange={(evento) =>
-                                    setImpactoPlacar(
-                                        evento.target
-                                            .value as ImpactoPlacar,
-                                    )
-                                }
-                                fullWidth
-                            >
-                                {impactosPlacar.map(
-                                    (impacto) => (
-                                        <MenuItem
-                                            key={impacto}
-                                            value={impacto}
-                                        >
-                                            {impacto === "Nenhum"
-                                                ? "Não altera o placar"
-                                                : impacto ===
-                                                    "PontoEquipe"
-                                                    ? "Ponto da equipe"
-                                                    : "Ponto do adversário"}
-                                        </MenuItem>
-                                    ),
-                                )}
-                            </TextField>
+                            {fundamentos.map(
+                                (fundamento) => (
+                                    <Button
+                                        key={
+                                            fundamento
+                                        }
+                                        variant={
+                                            fundamentoScout ===
+                                                fundamento
+                                                ? "contained"
+                                                : "outlined"
+                                        }
+                                        onClick={() =>
+                                            selecionarFundamento(
+                                                fundamento,
+                                            )
+                                        }
+                                        sx={{
+                                            minHeight: 52,
+                                        }}
+                                    >
+                                        {fundamento}
+                                    </Button>
+                                ),
+                            )}
                         </Box>
 
-                        {/* AÇÕES */}
+                        <Divider
+                            sx={{ mb: 3 }}
+                        />
+
+                        <Typography
+                            variant="subtitle1"
+                            sx={{
+                                fontWeight: 700,
+                                mb: 1,
+                            }}
+                        >
+                            3. Resultado
+                        </Typography>
+
+                        {!fundamentoScout ? (
+                            <Alert severity="info">
+                                Selecione primeiro um fundamento.
+                            </Alert>
+                        ) : (
+                            <Box
+                                sx={{
+                                    display: "grid",
+                                    gridTemplateColumns: {
+                                        xs: "repeat(2, 1fr)",
+                                        sm: "repeat(4, 1fr)",
+                                        md: "repeat(5, 1fr)",
+                                    },
+                                    gap: 1,
+                                }}
+                            >
+                                {resultadosPorFundamento(
+                                    fundamentoScout,
+                                ).map(
+                                    (
+                                        resultado,
+                                    ) => {
+                                        const impacto =
+                                            descobrirImpactoPlacar(
+                                                fundamentoScout,
+                                                resultado,
+                                            );
+
+                                        return (
+                                            <Button
+                                                key={
+                                                    resultado
+                                                }
+                                                variant="contained"
+                                                color={
+                                                    impacto ===
+                                                        "PontoEquipe"
+                                                        ? "success"
+                                                        : impacto ===
+                                                            "PontoAdversario"
+                                                            ? "error"
+                                                            : "primary"
+                                                }
+                                                onClick={() =>
+                                                    registrarScoutRapido(
+                                                        resultado,
+                                                    )
+                                                }
+                                                disabled={
+                                                    !atletaScoutId
+                                                }
+                                                sx={{
+                                                    minHeight: 64,
+                                                    fontWeight: 700,
+                                                }}
+                                            >
+                                                {descricaoResultado(
+                                                    fundamentoScout,
+                                                    resultado,
+                                                )}
+                                            </Button>
+                                        );
+                                    },
+                                )}
+                            </Box>
+                        )}
 
                         <Box
                             sx={{
@@ -2971,10 +2919,48 @@ function CentroPartida() {
                                 display: "flex",
                                 justifyContent:
                                     "space-between",
+                                alignItems: {
+                                    xs: "flex-start",
+                                    md: "center",
+                                },
+                                flexDirection: {
+                                    xs: "column",
+                                    md: "row",
+                                },
                                 gap: 2,
-                                flexWrap: "wrap",
                             }}
                         >
+                            <Box
+                                sx={{
+                                    display: "flex",
+                                    gap: 1,
+                                    flexWrap: "wrap",
+                                }}
+                            >
+                                {atletaScoutId && (
+                                    <Chip
+                                        label={
+                                            buscarAtleta(
+                                                atletaScoutId,
+                                            )
+                                                ? `Atleta: ${buscarAtleta(
+                                                    atletaScoutId,
+                                                )?.nome
+                                                }`
+                                                : "Atleta selecionado"
+                                        }
+                                        color="primary"
+                                    />
+                                )}
+
+                                {fundamentoScout && (
+                                    <Chip
+                                        label={`Fundamento: ${fundamentoScout}`}
+                                        variant="outlined"
+                                    />
+                                )}
+                            </Box>
+
                             <Button
                                 variant="outlined"
                                 color="warning"
@@ -2987,20 +2973,6 @@ function CentroPartida() {
                                 }
                             >
                                 Desfazer última ação
-                            </Button>
-
-                            <Button
-                                variant="contained"
-                                onClick={
-                                    registrarScout
-                                }
-                                disabled={
-                                    !atletaScoutId ||
-                                    !fundamentoScout ||
-                                    !resultadoScout
-                                }
-                            >
-                                Registrar ação
                             </Button>
                         </Box>
                     </>

@@ -15,6 +15,8 @@ import Scout from "../pages/Scout";
 import Treinos from "../pages/Treinos";
 import Configuracoes from "../pages/Configuracoes";
 import CentroPartida from "../pages/CentroPartida";
+import JogoRapidoPage from "../pages/JogoRapido";
+import HistoricoJogosRapidos from "../pages/HistoricoJogosRapidos";
 
 function AppRoutes() {
     return (
@@ -27,6 +29,16 @@ function AppRoutes() {
                     <Route path="/jogos" element={<Jogos />} />
                     <Route path="/scout" element={<Scout />} />
                     <Route path="/treinos" element={<Treinos />} />
+
+                    <Route
+                        path="/jogo-rapido"
+                        element={<JogoRapidoPage />}
+                    />
+
+                    <Route
+                        path="/jogos-rapidos/historico"
+                        element={<HistoricoJogosRapidos />}
+                    />
 
                     <Route
                         path="/configuracoes"

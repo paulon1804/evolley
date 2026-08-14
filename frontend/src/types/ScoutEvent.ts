@@ -10,6 +10,10 @@ export type FundamentoScout =
 
 export type ResultadoScout =
     | "Ponto"
+    | "Ace"
+    | "A"
+    | "B"
+    | "C"
     | "Positivo"
     | "Neutro"
     | "Negativo"
@@ -22,6 +26,7 @@ export type ImpactoPlacar =
 
 export interface ScoutEvent {
     id: string;
+
     partidaId: string;
     setId: string;
     atletaId: string;
