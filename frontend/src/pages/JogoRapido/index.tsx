@@ -11,6 +11,7 @@ import {
     Chip,
     Divider,
     Paper,
+    TextField,
     Typography,
 } from "@mui/material";
 
@@ -44,6 +45,22 @@ function JogoRapidoPage() {
             null,
         );
 
+    const [configurandoJogo, setConfigurandoJogo] =
+        useState(false);
+
+    const [nomeTimeA, setNomeTimeA] =
+        useState("Time A");
+
+    const [nomeTimeB, setNomeTimeB] =
+        useState("Time B");
+
+    const [nomesJogadoresA, setNomesJogadoresA] =
+        useState<string[]>([]);
+
+    const [nomesJogadoresB, setNomesJogadoresB] =
+        useState<string[]>([]);
+
+
     const [jogo, setJogo] =
         useState<JogoRapido | null>(
             null,
@@ -65,9 +82,19 @@ function JogoRapidoPage() {
                 const dadosJogo: JogoRapido =
                     JSON.parse(jogoSalvo);
 
-                setJogo(dadosJogo);
+                const jogoNormalizado: JogoRapido = {
+                    ...dadosJogo,
+                    nomeTimeA:
+                        dadosJogo.nomeTimeA ||
+                        "Time A",
+                    nomeTimeB:
+                        dadosJogo.nomeTimeB ||
+                        "Time B",
+                };
+
+                setJogo(jogoNormalizado);
                 setFormato(
-                    dadosJogo.formato,
+                    jogoNormalizado.formato,
                 );
             } catch {
                 localStorage.removeItem(
@@ -148,13 +175,74 @@ function JogoRapidoPage() {
         );
     }
 
-    function criarJogadores(
+    function prepararConfiguracao(
         formatoSelecionado:
             FormatoJogoRapido,
     ) {
         const porTime =
-            formatoSelecionado ===
-                "2x2"
+            formatoSelecionado === "2x2"
+                ? 2
+                : 6;
+
+        setFormato(formatoSelecionado);
+        setNomeTimeA("Time A");
+        setNomeTimeB("Time B");
+
+        setNomesJogadoresA(
+            Array.from(
+                { length: porTime },
+                (_, indice) =>
+                    `Jogador ${indice + 1}`,
+            ),
+        );
+
+        setNomesJogadoresB(
+            Array.from(
+                { length: porTime },
+                (_, indice) =>
+                    `Jogador ${indice + 1}`,
+            ),
+        );
+
+        setConfigurandoJogo(true);
+        setErro("");
+    }
+
+    function atualizarNomeConfiguracao(
+        time: "A" | "B",
+        indice: number,
+        nome: string,
+    ) {
+        const atualizarLista = (
+            listaAtual: string[],
+        ) =>
+            listaAtual.map(
+                (item, posicao) =>
+                    posicao === indice
+                        ? nome
+                        : item,
+            );
+
+        if (time === "A") {
+            setNomesJogadoresA(
+                atualizarLista,
+            );
+            return;
+        }
+
+        setNomesJogadoresB(
+            atualizarLista,
+        );
+    }
+
+    function criarJogadores(
+        formatoSelecionado:
+            FormatoJogoRapido,
+        nomesA: string[],
+        nomesB: string[],
+    ) {
+        const porTime =
+            formatoSelecionado === "2x2"
                 ? 2
                 : 6;
 
@@ -169,7 +257,9 @@ function JogoRapidoPage() {
             jogadores.push({
                 id: crypto.randomUUID(),
                 numero: indice,
-                nome: `Jogador ${indice}`,
+                nome:
+                    nomesA[indice - 1]?.trim() ||
+                    `Jogador ${indice}`,
                 time: "A",
             });
         }
@@ -182,7 +272,9 @@ function JogoRapidoPage() {
             jogadores.push({
                 id: crypto.randomUUID(),
                 numero: indice,
-                nome: `Jogador ${indice}`,
+                nome:
+                    nomesB[indice - 1]?.trim() ||
+                    `Jogador ${indice}`,
                 time: "B",
             });
         }
@@ -201,12 +293,29 @@ function JogoRapidoPage() {
 
         const novoJogo: JogoRapido = {
             id: crypto.randomUUID(),
+
             formato,
+
+            nomeTimeA:
+                nomeTimeA.trim() ||
+                "Time A",
+
+            nomeTimeB:
+                nomeTimeB.trim() ||
+                "Time B",
+
             jogadores:
-                criarJogadores(formato),
+                criarJogadores(
+                    formato,
+                    nomesJogadoresA,
+                    nomesJogadoresB,
+                ),
+
             pontosTimeA: 0,
             pontosTimeB: 0,
+
             status: "Em andamento",
+
             iniciadoEm:
                 new Date().toISOString(),
         };
@@ -215,6 +324,7 @@ function JogoRapidoPage() {
         salvarEventos([]);
         setJogadorSelecionado("");
         setAcaoSelecionada(null);
+        setConfigurandoJogo(false);
         setErro("");
     }
 
@@ -597,6 +707,11 @@ function JogoRapidoPage() {
         setJogo(null);
         setEventos([]);
         setFormato(null);
+        setConfigurandoJogo(false);
+        setNomeTimeA("Time A");
+        setNomeTimeB("Time B");
+        setNomesJogadoresA([]);
+        setNomesJogadoresB([]);
 
         setJogadorSelecionado("");
         setAcaoSelecionada(null);
@@ -790,8 +905,8 @@ function JogoRapidoPage() {
                                                 mb: 1,
                                             }}
                                         >
-                                            {jogador.time}
-                                            {jogador.numero}
+                                            {jogador.nome ||
+                                                `${jogador.time}${jogador.numero}`}
                                         </Typography>
 
                                         {resumo.size === 0 ? (
@@ -880,6 +995,168 @@ function JogoRapidoPage() {
         );
     }
 
+    if (
+        !jogo &&
+        configurandoJogo &&
+        formato
+    ) {
+        return (
+            <>
+                <Typography
+                    variant="h4"
+                    sx={{
+                        fontWeight: 700,
+                        mb: 1,
+                    }}
+                >
+                    Configurar Jogo Rápido
+                </Typography>
+
+                <Typography
+                    color="text.secondary"
+                    sx={{ mb: 3 }}
+                >
+                    Formato {formato}. Os nomes são opcionais.
+                </Typography>
+
+                <Box
+                    sx={{
+                        display: "grid",
+                        gridTemplateColumns: {
+                            xs: "1fr",
+                            md: "repeat(2, 1fr)",
+                        },
+                        gap: 2,
+                        mb: 3,
+                    }}
+                >
+                    <Paper sx={{ p: 3 }}>
+                        <Typography
+                            variant="h6"
+                            sx={{
+                                fontWeight: 700,
+                                mb: 2,
+                            }}
+                        >
+                            Time A
+                        </Typography>
+
+                        <TextField
+                            label="Nome do time"
+                            value={nomeTimeA}
+                            onChange={(evento) =>
+                                setNomeTimeA(
+                                    evento.target.value,
+                                )
+                            }
+                            fullWidth
+                            sx={{ mb: 3 }}
+                        />
+
+                        <Box
+                            sx={{
+                                display: "grid",
+                                gap: 1.5,
+                            }}
+                        >
+                            {nomesJogadoresA.map(
+                                (nome, indice) => (
+                                    <TextField
+                                        key={`A-${indice}`}
+                                        label={`Jogador ${indice + 1}`}
+                                        value={nome}
+                                        onChange={(evento) =>
+                                            atualizarNomeConfiguracao(
+                                                "A",
+                                                indice,
+                                                evento.target.value,
+                                            )
+                                        }
+                                        fullWidth
+                                    />
+                                ),
+                            )}
+                        </Box>
+                    </Paper>
+
+                    <Paper sx={{ p: 3 }}>
+                        <Typography
+                            variant="h6"
+                            sx={{
+                                fontWeight: 700,
+                                mb: 2,
+                            }}
+                        >
+                            Time B
+                        </Typography>
+
+                        <TextField
+                            label="Nome do time"
+                            value={nomeTimeB}
+                            onChange={(evento) =>
+                                setNomeTimeB(
+                                    evento.target.value,
+                                )
+                            }
+                            fullWidth
+                            sx={{ mb: 3 }}
+                        />
+
+                        <Box
+                            sx={{
+                                display: "grid",
+                                gap: 1.5,
+                            }}
+                        >
+                            {nomesJogadoresB.map(
+                                (nome, indice) => (
+                                    <TextField
+                                        key={`B-${indice}`}
+                                        label={`Jogador ${indice + 1}`}
+                                        value={nome}
+                                        onChange={(evento) =>
+                                            atualizarNomeConfiguracao(
+                                                "B",
+                                                indice,
+                                                evento.target.value,
+                                            )
+                                        }
+                                        fullWidth
+                                    />
+                                ),
+                            )}
+                        </Box>
+                    </Paper>
+                </Box>
+
+                <Box
+                    sx={{
+                        display: "flex",
+                        gap: 2,
+                        flexWrap: "wrap",
+                    }}
+                >
+                    <Button
+                        variant="outlined"
+                        onClick={() => {
+                            setConfigurandoJogo(false);
+                            setFormato(null);
+                        }}
+                    >
+                        Voltar
+                    </Button>
+
+                    <Button
+                        variant="contained"
+                        onClick={iniciarJogo}
+                    >
+                        Começar jogo
+                    </Button>
+                </Box>
+            </>
+        );
+    }
+
     if (!jogo) {
         return (
             <>
@@ -946,7 +1223,7 @@ function JogoRapidoPage() {
                                     : "outlined"
                             }
                             onClick={() =>
-                                setFormato(
+                                prepararConfiguracao(
                                     "2x2",
                                 )
                             }
@@ -966,7 +1243,7 @@ function JogoRapidoPage() {
                                     : "outlined"
                             }
                             onClick={() =>
-                                setFormato(
+                                prepararConfiguracao(
                                     "6x6",
                                 )
                             }
@@ -979,20 +1256,6 @@ function JogoRapidoPage() {
                             6 x 6
                         </Button>
                     </Box>
-
-                    <Button
-                        variant="contained"
-                        size="large"
-                        onClick={
-                            iniciarJogo
-                        }
-                        disabled={
-                            !formato
-                        }
-                        fullWidth
-                    >
-                        Iniciar jogo
-                    </Button>
                 </Paper>
             </>
         );
@@ -1059,7 +1322,7 @@ function JogoRapidoPage() {
                                 fontWeight: 700,
                             }}
                         >
-                            Time A
+                            {jogo.nomeTimeA || "Time A"}
                         </Typography>
 
                         <Typography
@@ -1089,7 +1352,7 @@ function JogoRapidoPage() {
                                 fontWeight: 700,
                             }}
                         >
-                            Time B
+                            {jogo.nomeTimeB || "Time B"}
                         </Typography>
 
                         <Typography
@@ -1239,7 +1502,7 @@ function JogoRapidoPage() {
                                     fontWeight: 700,
                                 }}
                             >
-                                A{jogador.numero}
+                                {jogador.nome || `A${jogador.numero}`}
                             </Button>
                         ),
                     )}
@@ -1291,7 +1554,7 @@ function JogoRapidoPage() {
                                     fontWeight: 700,
                                 }}
                             >
-                                B{jogador.numero}
+                                {jogador.nome || `B${jogador.numero}`}
                             </Button>
                         ),
                     )}
@@ -1329,7 +1592,7 @@ function JogoRapidoPage() {
                     {jogadorAtual && (
                         <Chip
                             color="primary"
-                            label={`Selecionado: ${jogadorAtual.time}${jogadorAtual.numero}`}
+                            label={`Selecionado: ${jogadorAtual.nome || `${jogadorAtual.time}${jogadorAtual.numero}`}`}
                         />
                     )}
                 </Box>

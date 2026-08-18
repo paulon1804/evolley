@@ -13,6 +13,11 @@ import Atletas from "../pages/Atletas";
 import Jogos from "../pages/Jogos";
 import Scout from "../pages/Scout";
 import Treinos from "../pages/Treinos";
+import NovoTreino from "../pages/Treinos/NovoTreino";
+import CentroTreino from "../pages/Treinos/CentroTreino";
+import ResumoTreino from "../pages/Treinos/ResumoTreino";
+import EvolucaoTreinos from "../pages/Treinos/Evolucao";
+import AnalisesTreinos from "../pages/Treinos/Analises";
 import Configuracoes from "../pages/Configuracoes";
 import CentroPartida from "../pages/CentroPartida";
 import JogoRapidoPage from "../pages/JogoRapido";
@@ -28,7 +33,6 @@ function AppRoutes() {
                     <Route path="/atletas" element={<Atletas />} />
                     <Route path="/jogos" element={<Jogos />} />
                     <Route path="/scout" element={<Scout />} />
-                    <Route path="/treinos" element={<Treinos />} />
 
                     <Route
                         path="/jogo-rapido"
@@ -41,16 +45,50 @@ function AppRoutes() {
                     />
 
                     <Route
+                        path="/treinos"
+                        element={<Treinos />}
+                    />
+
+                    <Route
+                        path="/treinos/novo"
+                        element={<NovoTreino />}
+                    />
+
+                    <Route
+                        path="/treinos/:treinoId/centro"
+                        element={<CentroTreino />}
+                    />
+
+                    <Route
+                        path="/treinos/:treinoId/resumo"
+                        element={<ResumoTreino />}
+                    />
+
+                    <Route
+                        path="/treinos/evolucao"
+                        element={<EvolucaoTreinos />}
+                    />
+
+                    <Route
+                        path="/treinos/analises"
+                        element={<AnalisesTreinos />}
+                    />
+
+                    <Route
                         path="/configuracoes"
                         element={<Configuracoes />}
                     />
+
                     <Route
                         path="/jogos/:partidaId/centro"
                         element={<CentroPartida />}
                     />
                 </Route>
 
-                <Route path="*" element={<Navigate to="/" replace />} />
+                <Route
+                    path="*"
+                    element={<Navigate to="/" replace />}
+                />
             </Routes>
         </BrowserRouter>
     );

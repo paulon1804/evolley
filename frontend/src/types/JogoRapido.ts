@@ -34,37 +34,27 @@ export interface JogadorJogoRapido {
 
 export interface EventoJogoRapido {
     id: string;
-
     jogoId: string;
     jogadorId: string;
     time: TimeJogoRapido;
-
     acao: AcaoJogoRapido;
     resultado: ResultadoJogoRapido;
-
     pontosTimeAAntes: number;
     pontosTimeBAntes: number;
-
     pontosTimeADepois: number;
     pontosTimeBDepois: number;
-
     criadoEm: string;
 }
 
 export interface JogoRapido {
     id: string;
-
     formato: FormatoJogoRapido;
-
+    nomeTimeA: string;
+    nomeTimeB: string;
     jogadores: JogadorJogoRapido[];
-
     pontosTimeA: number;
     pontosTimeB: number;
-
-    status:
-    | "Em andamento"
-    | "Finalizado";
-
+    status: "Em andamento" | "Finalizado";
     iniciadoEm: string;
     finalizadoEm?: string;
 }
