@@ -12,6 +12,9 @@ export interface AtletaEscalado {
 export interface EscalacaoPartida {
     id: string;
     partidaId: string;
+
+    /* Undefined = equipe da partida (dados antigos). */
+    equipeId?: string;
     atletas: AtletaEscalado[];
     confirmada: boolean;
     createdAt: string;

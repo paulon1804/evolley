@@ -31,6 +31,9 @@ export interface ScoutEvent {
     setId: string;
     atletaId: string;
 
+    /* Equipe do atleta. Undefined = equipe da partida (dados antigos). */
+    equipeId?: string;
+
     fundamento: FundamentoScout;
     resultado: ResultadoScout;
 

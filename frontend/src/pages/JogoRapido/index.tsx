@@ -24,6 +24,8 @@ import type {
     ResultadoJogoRapido,
 } from "../../types/JogoRapido";
 
+import { JOGADORES_POR_TIME } from "../../types/JogoRapido";
+
 const acoes: AcaoJogoRapido[] = [
     "Saque",
     "Passe",
@@ -180,9 +182,7 @@ function JogoRapidoPage() {
             FormatoJogoRapido,
     ) {
         const porTime =
-            formatoSelecionado === "2x2"
-                ? 2
-                : 6;
+            JOGADORES_POR_TIME[formatoSelecionado];
 
         setFormato(formatoSelecionado);
         setNomeTimeA("Time A");
@@ -242,9 +242,7 @@ function JogoRapidoPage() {
         nomesB: string[],
     ) {
         const porTime =
-            formatoSelecionado === "2x2"
-                ? 2
-                : 6;
+            JOGADORES_POR_TIME[formatoSelecionado];
 
         const jogadores:
             JogadorJogoRapido[] = [];
@@ -285,7 +283,7 @@ function JogoRapidoPage() {
     function iniciarJogo() {
         if (!formato) {
             setErro(
-                "Selecione 2x2 ou 6x6.",
+                "Selecione 2x2, 4x4 ou 6x6.",
             );
 
             return;
@@ -1210,7 +1208,7 @@ function JogoRapidoPage() {
                             display: "grid",
                             gridTemplateColumns: {
                                 xs: "1fr",
-                                sm: "repeat(2, 1fr)",
+                                sm: "repeat(3, 1fr)",
                             },
                             gap: 2,
                             mb: 3,
@@ -1234,6 +1232,26 @@ function JogoRapidoPage() {
                             }}
                         >
                             2 x 2
+                        </Button>
+
+                        <Button
+                            variant={
+                                formato === "4x4"
+                                    ? "contained"
+                                    : "outlined"
+                            }
+                            onClick={() =>
+                                prepararConfiguracao(
+                                    "4x4",
+                                )
+                            }
+                            sx={{
+                                minHeight: 120,
+                                fontSize: 28,
+                                fontWeight: 700,
+                            }}
+                        >
+                            4 x 4
                         </Button>
 
                         <Button
@@ -1471,10 +1489,7 @@ function JogoRapidoPage() {
                         gridTemplateColumns: {
                             xs: "repeat(2, 1fr)",
                             sm:
-                                jogo.formato ===
-                                    "6x6"
-                                    ? "repeat(6, 1fr)"
-                                    : "repeat(2, 1fr)",
+                                `repeat(${JOGADORES_POR_TIME[jogo.formato]}, 1fr)`,
                         },
                         gap: 1,
                         mb: 2,
@@ -1524,10 +1539,7 @@ function JogoRapidoPage() {
                         gridTemplateColumns: {
                             xs: "repeat(2, 1fr)",
                             sm:
-                                jogo.formato ===
-                                    "6x6"
-                                    ? "repeat(6, 1fr)"
-                                    : "repeat(2, 1fr)",
+                                `repeat(${JOGADORES_POR_TIME[jogo.formato]}, 1fr)`,
                         },
                         gap: 1,
                     }}

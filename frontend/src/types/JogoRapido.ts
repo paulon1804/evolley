@@ -1,6 +1,13 @@
 export type FormatoJogoRapido =
     | "2x2"
+    | "4x4"
     | "6x6";
+
+export const JOGADORES_POR_TIME: Record<FormatoJogoRapido, number> = {
+    "2x2": 2,
+    "4x4": 4,
+    "6x6": 6,
+};
 
 export type TimeJogoRapido =
     | "A"

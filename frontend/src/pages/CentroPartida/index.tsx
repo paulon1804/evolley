@@ -20,7 +20,17 @@ import {
     FormControlLabel,
     MenuItem,
     Paper,
+    Tab,
+    Table,
+    TableBody,
+    TableCell,
+    TableContainer,
+    TableHead,
+    TableRow,
+    Tabs,
     TextField,
+    ToggleButton,
+    ToggleButtonGroup,
     Typography,
 } from "@mui/material";
 
@@ -48,6 +58,12 @@ import type {
     ScoutEvent,
 } from "../../types/ScoutEvent";
 
+import {
+    calcularDesempenho,
+    escolherMvp,
+    PESOS_MVP,
+} from "../../utils/mvp";
+
 
 
 function CentroPartida() {
@@ -72,6 +88,12 @@ function CentroPartida() {
         useState<FundamentoScout | "">("");
     const [escalacaoAtual, setEscalacaoAtual] =
         useState<AtletaEscalado[]>([]);
+
+    const [ladoEscalacao, setLadoEscalacao] =
+        useState<"casa" | "visitante">("casa");
+
+    const [ladoScout, setLadoScout] =
+        useState<"casa" | "visitante">("casa");
     const [erro, setErro] = useState("");
 
     /*
@@ -180,15 +202,42 @@ function CentroPartida() {
         [equipes, partida],
     );
 
+    const equipeVisitante = useMemo(
+        () =>
+            equipes.find(
+                (item) =>
+                    item.id ===
+                    partida?.adversarioEquipeId,
+            ),
+        [equipes, partida],
+    );
+
+    const nomeCasa = equipe?.nome ?? "Equipe";
+
+    const nomeVisitante =
+        equipeVisitante?.nome ??
+        partida?.adversario ??
+        "Adversário";
+
+    const equipeIdEscalacao =
+        ladoEscalacao === "casa"
+            ? partida?.equipeId
+            : partida?.adversarioEquipeId;
+
+    const equipeIdScout =
+        ladoScout === "casa"
+            ? partida?.equipeId
+            : partida?.adversarioEquipeId;
+
     const atletasDaEquipe = useMemo(
         () =>
             atletas.filter(
                 (atleta) =>
                     atleta.equipeId ===
-                    partida?.equipeId &&
+                    equipeIdEscalacao &&
                     atleta.ativo,
             ),
-        [atletas, partida],
+        [atletas, equipeIdEscalacao],
     );
 
     const setsDaPartida = useMemo(
@@ -216,34 +265,61 @@ function CentroPartida() {
         [setsDaPartida],
     );
 
-    const escalacaoSalva = useMemo(
-        () =>
-            escalacoes.find(
-                (item) =>
-                    item.partidaId ===
-                    partidaId,
-            ),
-        [escalacoes, partidaId],
+    /*
+     * Escalações antigas não têm equipeId: pertencem
+     * à equipe da partida (casa).
+     */
+    function buscarEscalacaoDaEquipe(
+        equipeId?: string,
+    ) {
+        if (!equipeId) {
+            return undefined;
+        }
+
+        return escalacoes.find(
+            (item) =>
+                item.partidaId === partidaId &&
+                (item.equipeId ??
+                    partida?.equipeId) === equipeId,
+        );
+    }
+
+    const escalacaoSalva = buscarEscalacaoDaEquipe(
+        equipeIdEscalacao,
+    );
+
+    const escalacaoCasa = buscarEscalacaoDaEquipe(
+        partida?.equipeId,
+    );
+
+    const escalacaoScout = buscarEscalacaoDaEquipe(
+        equipeIdScout,
     );
 
     useEffect(() => {
-        if (!escalacaoSalva) {
-            return;
-        }
-
         setEscalacaoAtual(
-            escalacaoSalva.atletas,
+            escalacaoSalva?.atletas ?? [],
         );
-    }, [escalacaoSalva]);
+    }, [escalacaoSalva, ladoEscalacao]);
 
+    /*
+     * A formação em quadra é da equipe da casa.
+     */
     const titulares = useMemo(
         () =>
-            escalacaoAtual.filter(
+            (ladoEscalacao === "casa"
+                ? escalacaoAtual
+                : escalacaoCasa?.atletas ?? []
+            ).filter(
                 (item) =>
                     item.funcao ===
                     "Titular",
             ),
-        [escalacaoAtual],
+        [
+            ladoEscalacao,
+            escalacaoAtual,
+            escalacaoCasa,
+        ],
     );
 
     const formacaoAtual = useMemo(
@@ -381,11 +457,11 @@ function CentroPartida() {
 
     const atletasDisponiveisScout =
         useMemo(() => {
-            if (!escalacaoSalva) {
+            if (!escalacaoScout) {
                 return [];
             }
 
-            return escalacaoSalva.atletas
+            return escalacaoScout.atletas
                 .map((item) =>
                     atletas.find(
                         (atleta) =>
@@ -399,7 +475,7 @@ function CentroPartida() {
                     ): atleta is Atleta =>
                         Boolean(atleta),
                 );
-        }, [escalacaoSalva, atletas]);
+        }, [escalacaoScout, atletas]);
 
     const eventosPartida = useMemo(
         () =>
@@ -410,6 +486,31 @@ function CentroPartida() {
             ),
         [scoutEvents, partidaId],
     );
+
+    const desempenhos = useMemo(
+        () =>
+            calcularDesempenho(
+                eventosPartida,
+                partida?.equipeId ?? "",
+            ),
+        [eventosPartida, partida?.equipeId],
+    );
+
+    const mvp = useMemo(
+        () => escolherMvp(desempenhos),
+        [desempenhos],
+    );
+
+    function nomeDaEquipe(equipeId?: string) {
+        if (!partida) {
+            return "";
+        }
+
+        return (equipeId ?? partida.equipeId) ===
+            partida.equipeId
+            ? nomeCasa
+            : nomeVisitante;
+    }
 
     /*
      * ============================================================
@@ -483,6 +584,10 @@ function CentroPartida() {
             return 0;
         }
 
+        if (partida.melhorDe === 1) {
+            return 1;
+        }
+
         return partida.melhorDe === 3
             ? 2
             : 3;
@@ -493,6 +598,10 @@ function CentroPartida() {
     ) {
         if (!partida) {
             return 25;
+        }
+
+        if (partida.pontosPorSet) {
+            return partida.pontosPorSet;
         }
 
         const tieBreak =
@@ -1137,6 +1246,14 @@ function CentroPartida() {
             return;
         }
 
+        if (!equipeIdEscalacao) {
+            setErro(
+                "Esta partida não tem uma equipe cadastrada para este lado.",
+            );
+
+            return;
+        }
+
         if (
             escalacaoAtual.length === 0
         ) {
@@ -1200,6 +1317,8 @@ function CentroPartida() {
             id: crypto.randomUUID(),
             partidaId:
                 partida.id,
+            equipeId:
+                equipeIdEscalacao,
             atletas:
                 escalacaoAtual,
             confirmada: true,
@@ -1694,11 +1813,26 @@ function CentroPartida() {
             return;
         }
 
-        const impacto =
+        /*
+         * O impacto é calculado do ponto de vista de quem
+         * executou a ação. O placar guarda sempre o ponto de
+         * vista da equipe da casa, então invertemos quando o
+         * atleta é do time visitante.
+         */
+        const impactoDoAtor =
             descobrirImpactoPlacar(
                 fundamentoScout,
                 resultado,
             );
+
+        const impacto: ImpactoPlacar =
+            ladoScout === "casa"
+                ? impactoDoAtor
+                : impactoDoAtor === "PontoEquipe"
+                    ? "PontoAdversario"
+                    : impactoDoAtor === "PontoAdversario"
+                        ? "PontoEquipe"
+                        : "Nenhum";
 
         const pontosEquipeAntes =
             setAtual.pontosEquipe;
@@ -1727,13 +1861,16 @@ function CentroPartida() {
             partidaId: partida.id,
             setId: setAtual.id,
             atletaId: atletaScoutId,
+            equipeId: equipeIdScout,
             fundamento: fundamentoScout,
             resultado,
             impactoPlacar: impacto,
             posicaoQuadra:
-                buscarPosicaoAtleta(
-                    atletaScoutId,
-                ),
+                ladoScout === "casa"
+                    ? buscarPosicaoAtleta(
+                        atletaScoutId,
+                    )
+                    : undefined,
             pontosEquipeAntes,
             pontosAdversarioAntes,
             pontosEquipeDepois,
@@ -2009,12 +2146,13 @@ function CentroPartida() {
                         <Typography
                             color="text.secondary"
                         >
-                            {partida.tipo} ·
-                            Melhor de{" "}
-                            {
-                                partida.melhorDe
-                            }{" "}
-                            sets
+                            {partida.tipo} ·{" "}
+                            {partida.melhorDe === 1
+                                ? "Set único"
+                                : `Melhor de ${partida.melhorDe} sets`}
+                            {partida.pontosPorSet
+                                ? ` · até ${partida.pontosPorSet} pontos`
+                                : ""}
                         </Typography>
                     </Box>
 
@@ -2292,6 +2430,38 @@ function CentroPartida() {
                         />
                     )}
                 </Box>
+
+                {partida.adversarioEquipeId ? (
+                    <Tabs
+                        value={ladoEscalacao}
+                        onChange={(_, valor) =>
+                            setLadoEscalacao(valor)
+                        }
+                        sx={{ mb: 3 }}
+                    >
+                        <Tab
+                            value="casa"
+                            label={`${nomeCasa}${escalacaoCasa ? " ✓" : ""}`}
+                        />
+
+                        <Tab
+                            value="visitante"
+                            label={`${nomeVisitante}${buscarEscalacaoDaEquipe(partida.adversarioEquipeId) ? " ✓" : ""}`}
+                        />
+                    </Tabs>
+                ) : (
+                    <Alert
+                        severity="info"
+                        sx={{ mb: 3 }}
+                    >
+                        O adversário não é uma equipe
+                        cadastrada, então só o scout de{" "}
+                        {nomeCasa} está disponível. Para
+                        marcar os dois times, edite a partida
+                        em Jogos e escolha a &quot;Equipe
+                        adversária&quot;.
+                    </Alert>
+                )}
 
                 {atletasDaEquipe.length ===
                     0 ? (
@@ -2696,7 +2866,7 @@ function CentroPartida() {
                         <Typography
                             color="text.secondary"
                         >
-                            Selecione atleta, fundamento e resultado.
+                            Selecione a equipe, o atleta, o fundamento e o resultado.
                         </Typography>
                     </Box>
 
@@ -2709,13 +2879,59 @@ function CentroPartida() {
                     )}
                 </Box>
 
+                {setAtual &&
+                    partida.adversarioEquipeId && (
+                        <Box sx={{ mb: 3 }}>
+                            <Typography
+                                variant="subtitle1"
+                                sx={{
+                                    fontWeight: 700,
+                                    mb: 1,
+                                }}
+                            >
+                                Equipe do scout
+                            </Typography>
+
+                            <ToggleButtonGroup
+                                exclusive
+                                fullWidth
+                                color="primary"
+                                value={ladoScout}
+                                onChange={(_, valor) => {
+                                    if (valor) {
+                                        setLadoScout(valor);
+                                        setAtletaScoutId("");
+                                    }
+                                }}
+                            >
+                                <ToggleButton
+                                    value="casa"
+                                    sx={{ minHeight: 52 }}
+                                >
+                                    {nomeCasa}
+                                </ToggleButton>
+
+                                <ToggleButton
+                                    value="visitante"
+                                    sx={{ minHeight: 52 }}
+                                >
+                                    {nomeVisitante}
+                                </ToggleButton>
+                            </ToggleButtonGroup>
+                        </Box>
+                    )}
+
                 {!setAtual ? (
                     <Alert severity="info">
                         Inicie um set antes de registrar o scout.
                     </Alert>
-                ) : !escalacaoSalva ? (
+                ) : !escalacaoScout ? (
                     <Alert severity="warning">
-                        Confirme a escalação antes de iniciar o scout.
+                        Confirme a escalação de{" "}
+                        {ladoScout === "casa"
+                            ? nomeCasa
+                            : nomeVisitante}{" "}
+                        antes de iniciar o scout.
                     </Alert>
                 ) : (
                     <>
@@ -2979,6 +3195,177 @@ function CentroPartida() {
                 )}
             </Paper>
 
+            {/* MVP */}
+
+            <Paper
+                sx={{
+                    p: 3,
+                    mb: 3,
+                }}
+            >
+                <Box
+                    sx={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: {
+                            xs: "flex-start",
+                            md: "center",
+                        },
+                        flexDirection: {
+                            xs: "column",
+                            md: "row",
+                        },
+                        gap: 2,
+                        mb: 2,
+                    }}
+                >
+                    <Box>
+                        <Box
+                            sx={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 2,
+                                flexWrap: "wrap",
+                            }}
+                        >
+                            <Typography
+                                variant="h5"
+                                sx={{ fontWeight: 700 }}
+                            >
+                                MVP da partida
+                            </Typography>
+
+                            <Button
+                                size="small"
+                                variant="outlined"
+                                onClick={() =>
+                                    navigate(
+                                        `/scout?partida=${partida.id}`,
+                                    )
+                                }
+                            >
+                                Relatório por time
+                            </Button>
+                        </Box>
+
+                        <Typography
+                            color="text.secondary"
+                        >
+                            Nota = pontos ×{PESOS_MVP.ponto} · passe A ×
+                            {PESOS_MVP.passeA} · passe B ×
+                            {PESOS_MVP.passeB} · levantamento positivo ×
+                            {PESOS_MVP.levantamento} · defesa positiva ×
+                            {PESOS_MVP.defesa}
+                        </Typography>
+                    </Box>
+
+                    {mvp && (
+                        <Chip
+                            color="warning"
+                            label={`${partida.status === "Finalizada"
+                                ? "MVP"
+                                : "MVP parcial"
+                                }: #${buscarAtleta(mvp.atletaId)?.numero ?? "?"
+                                } ${buscarAtleta(mvp.atletaId)?.nome ?? "Atleta"
+                                } · ${nomeDaEquipe(mvp.equipeId)}`}
+                            sx={{ fontWeight: 700 }}
+                        />
+                    )}
+                </Box>
+
+                {desempenhos.length === 0 ? (
+                    <Alert severity="info">
+                        Registre ações no scout para calcular o MVP.
+                    </Alert>
+                ) : (
+                    <TableContainer>
+                        <Table size="small">
+                            <TableHead>
+                                <TableRow>
+                                    <TableCell>Atleta</TableCell>
+                                    <TableCell>Equipe</TableCell>
+                                    <TableCell align="right">Pontos</TableCell>
+                                    <TableCell align="right">Passe A</TableCell>
+                                    <TableCell align="right">Passe B</TableCell>
+                                    <TableCell align="right">Lev. +</TableCell>
+                                    <TableCell align="right">Defesas +</TableCell>
+                                    <TableCell align="right">Erros</TableCell>
+                                    <TableCell align="right">Nota</TableCell>
+                                </TableRow>
+                            </TableHead>
+
+                            <TableBody>
+                                {desempenhos.map((item) => {
+                                    const atleta = buscarAtleta(
+                                        item.atletaId,
+                                    );
+
+                                    const destaque =
+                                        mvp?.atletaId ===
+                                        item.atletaId;
+
+                                    return (
+                                        <TableRow
+                                            key={item.atletaId}
+                                            selected={destaque}
+                                        >
+                                            <TableCell
+                                                sx={{
+                                                    fontWeight: destaque
+                                                        ? 700
+                                                        : 400,
+                                                }}
+                                            >
+                                                {atleta
+                                                    ? `#${atleta.numero} ${atleta.nome}`
+                                                    : "Atleta"}
+                                            </TableCell>
+
+                                            <TableCell>
+                                                {nomeDaEquipe(
+                                                    item.equipeId,
+                                                )}
+                                            </TableCell>
+
+                                            <TableCell align="right">
+                                                {item.pontos}
+                                            </TableCell>
+
+                                            <TableCell align="right">
+                                                {item.passesA}
+                                            </TableCell>
+
+                                            <TableCell align="right">
+                                                {item.passesB}
+                                            </TableCell>
+
+                                            <TableCell align="right">
+                                                {item.levantamentosBons}
+                                            </TableCell>
+
+                                            <TableCell align="right">
+                                                {item.defesasBoas}
+                                            </TableCell>
+
+                                            <TableCell align="right">
+                                                {item.erros}
+                                            </TableCell>
+
+                                            <TableCell
+                                                align="right"
+                                                sx={{ fontWeight: 700 }}
+                                            >
+                                                {item.nota}
+                                            </TableCell>
+                                        </TableRow>
+                                    );
+                                })}
+                            </TableBody>
+                        </Table>
+                    </TableContainer>
+                )}
+            </Paper>
+
             {/* ÚLTIMAS AÇÕES */}
 
             <Paper
@@ -3084,6 +3471,20 @@ function CentroPartida() {
                                                                 "wrap",
                                                         }}
                                                     >
+                                                        <Chip
+                                                            size="small"
+                                                            color={
+                                                                (evento.equipeId ??
+                                                                    partida.equipeId) ===
+                                                                    partida.equipeId
+                                                                    ? "primary"
+                                                                    : "secondary"
+                                                            }
+                                                            label={nomeDaEquipe(
+                                                                evento.equipeId,
+                                                            )}
+                                                        />
+
                                                         {evento.posicaoQuadra && (
                                                             <Chip
                                                                 size="small"

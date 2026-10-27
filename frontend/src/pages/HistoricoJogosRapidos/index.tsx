@@ -131,7 +131,7 @@ function HistoricoJogosRapidos() {
         useState("");
 
     const [filtroFormato, setFiltroFormato] =
-        useState<"Todos" | "2x2" | "6x6">(
+        useState<"Todos" | "2x2" | "4x4" | "6x6">(
             "Todos",
         );
     useEffect(() => {
@@ -691,6 +691,7 @@ function HistoricoJogosRapidos() {
                                 evento.target.value as
                                 | "Todos"
                                 | "2x2"
+                                | "4x4"
                                 | "6x6",
                             )
                         }
@@ -702,6 +703,10 @@ function HistoricoJogosRapidos() {
 
                         <MenuItem value="2x2">
                             2x2
+                        </MenuItem>
+
+                        <MenuItem value="4x4">
+                            4x4
                         </MenuItem>
 
                         <MenuItem value="6x6">

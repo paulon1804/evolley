@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
+import AssessmentIcon from "@mui/icons-material/Assessment";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import { useNavigate } from "react-router-dom";
 
@@ -18,23 +19,39 @@ import {
     IconButton,
     MenuItem,
     Paper,
+    Tab,
     Table,
     TableBody,
     TableCell,
     TableContainer,
     TableHead,
     TableRow,
+    Tabs,
     TextField,
     Tooltip,
     Typography,
 } from "@mui/material";
 
 import PageHeader from "../../components/common/PageHeader";
+import {
+    baixarBackup,
+    temDadosParaBackup,
+    ultimoBackup,
+} from "../../utils/backup";
 
+import TorneioDialog from "./TorneioDialog";
+import type { DadosTorneio } from "./TorneioDialog";
+import TorneiosLista from "./TorneiosLista";
+
+import type { Atleta } from "../../types/Atleta";
 import type { Equipe } from "../../types/Equipe";
+import type { ScoutEvent } from "../../types/ScoutEvent";
+import { calcularDesempenho, escolherMvp } from "../../utils/mvp";
+import type { Torneio } from "../../types/Torneio";
 import type {
     MelhorDe,
     Partida,
+    PontosPorSet,
     StatusPartida,
     TipoPartida,
 } from "../../types/Partida";
@@ -51,7 +68,13 @@ const statusPartida: StatusPartida[] = [
     "Cancelada",
 ];
 
-const formatos: MelhorDe[] = [3, 5];
+const formatos: MelhorDe[] = [1, 3, 5];
+
+function rotuloMelhorDe(valor: MelhorDe) {
+    return valor === 1
+        ? "Set único"
+        : `Melhor de ${valor} sets`;
+}
 
 function dataAtual() {
     return new Date().toISOString().slice(0, 10);
@@ -65,6 +88,9 @@ const formularioInicial = {
     equipeId: "",
     tipo: "Oficial" as TipoPartida,
     adversario: "",
+    adversarioEquipeId: "",
+    torneioId: "",
+    pontosPorSet: "",
     competicao: "",
     local: "",
     data: "",
@@ -83,6 +109,24 @@ function Jogos() {
     const [partidaEmEdicao, setPartidaEmEdicao] =
         useState<Partida | null>(null);
 
+    const [torneios, setTorneios] = useState<Torneio[]>([]);
+    const [atletas, setAtletas] = useState<Atleta[]>([]);
+    const [scoutEvents, setScoutEvents] = useState<ScoutEvent[]>([]);
+
+    const [aba, setAba] = useState<"partidas" | "torneios">(
+        "partidas",
+    );
+
+    const [modalTorneioAberto, setModalTorneioAberto] =
+        useState(false);
+
+    const [torneioEmEdicao, setTorneioEmEdicao] =
+        useState<Torneio | null>(null);
+
+    const [ultimoBackupEm, setUltimoBackupEm] = useState<Date | null>(
+        ultimoBackup(),
+    );
+
     const [busca, setBusca] = useState("");
     const [mensagemErro, setMensagemErro] = useState("");
 
@@ -95,6 +139,38 @@ function Jogos() {
 
         const equipesSalvas =
             localStorage.getItem("evolley-equipes");
+
+        const torneiosSalvos =
+            localStorage.getItem("evolley-torneios");
+
+        try {
+            const atletasSalvos =
+                localStorage.getItem("evolley-atletas");
+
+            const scoutSalvo =
+                localStorage.getItem("evolley-scout-events");
+
+            if (atletasSalvos) {
+                setAtletas(JSON.parse(atletasSalvos));
+            }
+
+            if (scoutSalvo) {
+                setScoutEvents(JSON.parse(scoutSalvo));
+            }
+        } catch {
+            // Sem atletas ou scout legíveis, o MVP simplesmente não aparece.
+        }
+
+        if (torneiosSalvos) {
+            try {
+                const dados: Torneio[] =
+                    JSON.parse(torneiosSalvos);
+
+                setTorneios(dados);
+            } catch {
+                localStorage.removeItem("evolley-torneios");
+            }
+        }
 
         if (partidasSalvas) {
             try {
@@ -123,6 +199,57 @@ function Jogos() {
         () => equipes.filter((equipe) => equipe.ativa),
         [equipes],
     );
+
+    const equipesDoTorneio = useMemo(
+        () =>
+            torneios.find(
+                (torneio) => torneio.id === formulario.torneioId,
+            )?.equipesIds ?? [],
+        [torneios, formulario.torneioId],
+    );
+
+    // Com torneio escolhido (e equipes alocadas), só elas aparecem.
+    const equipesElegiveis = useMemo(
+        () =>
+            equipes.filter(
+                (equipe) =>
+                    equipesDoTorneio.length === 0 ||
+                    equipesDoTorneio.includes(equipe.id) ||
+                    equipe.id === formulario.equipeId,
+            ),
+        [equipes, equipesDoTorneio, formulario.equipeId],
+    );
+
+    const mvpPorPartida = useMemo(() => {
+        const resultado: Record<string, string> = {};
+
+        partidas
+            .filter((partida) => partida.status === "Finalizada")
+            .forEach((partida) => {
+                const mvp = escolherMvp(
+                    calcularDesempenho(
+                        scoutEvents.filter(
+                            (evento) =>
+                                evento.partidaId === partida.id,
+                        ),
+                        partida.equipeId,
+                    ),
+                );
+
+                const atleta = mvp
+                    ? atletas.find(
+                        (item) => item.id === mvp.atletaId,
+                    )
+                    : undefined;
+
+                if (atleta) {
+                    resultado[partida.id] =
+                        `#${atleta.numero} ${atleta.nome}`;
+                }
+            });
+
+        return resultado;
+    }, [partidas, scoutEvents, atletas]);
 
     function buscarNomeEquipe(equipeId: string) {
         return (
@@ -191,6 +318,12 @@ function Jogos() {
                 equipeId: partida.equipeId,
                 tipo: partida.tipo,
                 adversario: partida.adversario,
+                adversarioEquipeId:
+                    partida.adversarioEquipeId ?? "",
+                torneioId: partida.torneioId ?? "",
+                pontosPorSet: partida.pontosPorSet
+                    ? String(partida.pontosPorSet)
+                    : "",
                 competicao: partida.competicao ?? "",
                 local: partida.local ?? "",
                 data: partida.data ?? "",
@@ -213,6 +346,12 @@ function Jogos() {
         setFormulario(formularioInicial);
     }
 
+    function pontosEscolhidos(): PontosPorSet | undefined {
+        return formulario.pontosPorSet
+            ? (Number(formulario.pontosPorSet) as PontosPorSet)
+            : undefined;
+    }
+
     function salvarPartida() {
         if (!formularioValido) {
             return;
@@ -229,6 +368,11 @@ function Jogos() {
                         tipo: formulario.tipo,
                         adversario:
                             formulario.adversario.trim(),
+                        adversarioEquipeId:
+                            formulario.adversarioEquipeId || undefined,
+                        torneioId:
+                            formulario.torneioId || undefined,
+                        pontosPorSet: pontosEscolhidos(),
                         competicao:
                             formulario.competicao.trim() ||
                             undefined,
@@ -253,6 +397,10 @@ function Jogos() {
                 equipeId: formulario.equipeId,
                 tipo: formulario.tipo,
                 adversario: formulario.adversario.trim(),
+                adversarioEquipeId:
+                    formulario.adversarioEquipeId || undefined,
+                torneioId: formulario.torneioId || undefined,
+                pontosPorSet: pontosEscolhidos(),
                 competicao:
                     formulario.competicao.trim() || undefined,
                 local: formulario.local.trim() || undefined,
@@ -294,6 +442,10 @@ function Jogos() {
             equipeId: formulario.equipeId,
             tipo: "Amistoso",
             adversario: formulario.adversario.trim(),
+            adversarioEquipeId:
+                formulario.adversarioEquipeId || undefined,
+            torneioId: formulario.torneioId || undefined,
+            pontosPorSet: pontosEscolhidos(),
             competicao:
                 formulario.competicao.trim() || undefined,
             local: formulario.local.trim() || undefined,
@@ -323,6 +475,137 @@ function Jogos() {
         );
 
         salvarNoNavegador(novaLista);
+    }
+
+    function salvarTorneiosNoNavegador(
+        novaLista: Torneio[],
+    ) {
+        setTorneios(novaLista);
+
+        localStorage.setItem(
+            "evolley-torneios",
+            JSON.stringify(novaLista),
+        );
+    }
+
+    function abrirModalTorneio(torneio?: Torneio) {
+        setTorneioEmEdicao(torneio ?? null);
+        setModalTorneioAberto(true);
+    }
+
+    function fecharModalTorneio() {
+        setModalTorneioAberto(false);
+        setTorneioEmEdicao(null);
+    }
+
+    function salvarTorneio(dados: DadosTorneio) {
+        const agora = new Date().toISOString();
+
+        const camposComuns = {
+            nome: dados.nome.trim(),
+            formato: dados.formato,
+            local: dados.local.trim() || undefined,
+            dataInicio: dados.dataInicio || undefined,
+            dataFim: dados.dataFim || undefined,
+            status: dados.status,
+            observacoes: dados.observacoes.trim() || undefined,
+            equipesIds: dados.equipesIds,
+        };
+
+        if (torneioEmEdicao) {
+            salvarTorneiosNoNavegador(
+                torneios.map((torneio) =>
+                    torneio.id === torneioEmEdicao.id
+                        ? {
+                            ...torneio,
+                            ...camposComuns,
+                            updatedAt: agora,
+                        }
+                        : torneio,
+                ),
+            );
+
+            // Mantém o nome da competição das partidas
+            // vinculadas igual ao nome atual do torneio.
+            if (camposComuns.nome !== torneioEmEdicao.nome) {
+                salvarNoNavegador(
+                    partidas.map((partida) =>
+                        partida.torneioId === torneioEmEdicao.id
+                            ? {
+                                ...partida,
+                                competicao: camposComuns.nome,
+                                updatedAt: agora,
+                            }
+                            : partida,
+                    ),
+                );
+            }
+        } else {
+            const novoTorneio: Torneio = {
+                id: crypto.randomUUID(),
+                ...camposComuns,
+                createdAt: agora,
+                updatedAt: agora,
+            };
+
+            salvarTorneiosNoNavegador([
+                ...torneios,
+                novoTorneio,
+            ]);
+        }
+
+        fecharModalTorneio();
+    }
+
+    function removerTorneio(torneio: Torneio) {
+        const vinculadas = partidas.filter(
+            (partida) => partida.torneioId === torneio.id,
+        ).length;
+
+        const aviso =
+            vinculadas > 0
+                ? `Remover o torneio "${torneio.nome}"? As ${vinculadas} partida(s) vinculada(s) não serão apagadas, apenas desvinculadas do torneio.`
+                : `Remover o torneio "${torneio.nome}"?`;
+
+        if (!window.confirm(aviso)) {
+            return;
+        }
+
+        salvarTorneiosNoNavegador(
+            torneios.filter((item) => item.id !== torneio.id),
+        );
+
+        if (vinculadas > 0) {
+            salvarNoNavegador(
+                partidas.map((partida) =>
+                    partida.torneioId === torneio.id
+                        ? { ...partida, torneioId: undefined }
+                        : partida,
+                ),
+            );
+        }
+    }
+
+    function verPartidasDoTorneio(torneio: Torneio) {
+        setBusca(torneio.nome);
+        setAba("partidas");
+    }
+
+    function novaPartidaNoTorneio(torneio: Torneio) {
+        setMensagemErro("");
+        setPartidaEmEdicao(null);
+
+        setFormulario({
+            ...formularioInicial,
+            torneioId: torneio.id,
+            competicao: torneio.nome,
+            local: torneio.local ?? "",
+            melhorDe: 1,
+            pontosPorSet: String(torneio.pontosPorSet ?? 15),
+        });
+
+        setAba("partidas");
+        setModalAberto(true);
     }
 
     function formatarData(data?: string) {
@@ -365,14 +648,84 @@ function Jogos() {
         <>
             <PageHeader
                 titulo="Jogos"
-                subtitulo="Gerencie partidas oficiais e amistosos."
-                textoBotao="Nova partida"
+                subtitulo="Gerencie partidas oficiais, amistosos e torneios."
+                textoBotao={
+                    aba === "partidas"
+                        ? "Nova partida"
+                        : "Novo torneio"
+                }
                 iconeBotao={<AddIcon />}
-                aoClicarBotao={() => abrirModal()}
+                aoClicarBotao={() =>
+                    aba === "partidas"
+                        ? abrirModal()
+                        : abrirModalTorneio()
+                }
                 botaoDesabilitado={
+                    aba === "partidas" &&
                     equipesAtivas.length === 0
                 }
             />
+
+            {partidas.length > 0 &&
+                temDadosParaBackup() &&
+                (!ultimoBackupEm ||
+                    Date.now() - ultimoBackupEm.getTime() >
+                        24 * 60 * 60 * 1000) && (
+                    <Alert
+                        severity="warning"
+                        sx={{ mb: 3 }}
+                        action={
+                            <Button
+                                color="inherit"
+                                size="small"
+                                onClick={() => {
+                                    baixarBackup();
+                                    setUltimoBackupEm(ultimoBackup());
+                                }}
+                            >
+                                Exportar agora
+                            </Button>
+                        }
+                    >
+                        {ultimoBackupEm
+                            ? "Seu último backup tem mais de 24 horas."
+                            : "Você ainda não fez backup dos seus dados."}{" "}
+                        Os dados ficam só neste navegador.
+                    </Alert>
+                )}
+
+            <Tabs
+                value={aba}
+                onChange={(_, valor) => setAba(valor)}
+                sx={{ mb: 3 }}
+            >
+                <Tab
+                    value="partidas"
+                    label={`Partidas (${partidas.length})`}
+                />
+
+                <Tab
+                    value="torneios"
+                    label={`Torneios (${torneios.length})`}
+                />
+            </Tabs>
+
+            {aba === "torneios" && (
+                <TorneiosLista
+                    torneios={torneios}
+                    equipes={equipes}
+                    partidas={partidas}
+                    podeCriarPartida={equipesAtivas.length > 0}
+                    aoCriar={() => abrirModalTorneio()}
+                    aoEditar={abrirModalTorneio}
+                    aoRemover={removerTorneio}
+                    aoVerPartidas={verPartidasDoTorneio}
+                    aoNovaPartida={novaPartidaNoTorneio}
+                />
+            )}
+
+            {aba === "partidas" && (
+                <>
 
             {mensagemErro && (
                 <Alert
@@ -471,6 +824,7 @@ function Jogos() {
                                 <TableCell>Tipo</TableCell>
                                 <TableCell>Competição</TableCell>
                                 <TableCell>Status</TableCell>
+                                <TableCell>MVP</TableCell>
                                 <TableCell align="right">
                                     Ações
                                 </TableCell>
@@ -523,6 +877,10 @@ function Jogos() {
                                         />
                                     </TableCell>
 
+                                    <TableCell>
+                                        {mvpPorPartida[partida.id] ?? "—"}
+                                    </TableCell>
+
                                     <TableCell align="right">
                                         {(partida.status === "Agendada" ||
                                             partida.status === "Em andamento") && (
@@ -543,6 +901,16 @@ function Jogos() {
                                                     </IconButton>
                                                 </Tooltip>
                                             )}
+
+                                        <Tooltip title="Relatório dos jogadores por time">
+                                            <IconButton
+                                                onClick={() =>
+                                                    navigate(`/scout?partida=${partida.id}`)
+                                                }
+                                            >
+                                                <AssessmentIcon />
+                                            </IconButton>
+                                        </Tooltip>
 
                                         <Tooltip title="Editar partida">
                                             <IconButton
@@ -572,6 +940,16 @@ function Jogos() {
                     </Table>
                 </TableContainer>
             )}
+                </>
+            )}
+
+            <TorneioDialog
+                aberto={modalTorneioAberto}
+                equipes={equipes}
+                torneio={torneioEmEdicao}
+                aoFechar={fecharModalTorneio}
+                aoSalvar={salvarTorneio}
+            />
 
             <Dialog
                 open={modalAberto}
@@ -601,16 +979,27 @@ function Jogos() {
                             select
                             label="Equipe"
                             value={formulario.equipeId}
-                            onChange={(evento) =>
+                            onChange={(evento) => {
+                                const equipeId = evento.target.value;
+                                const conflito =
+                                    equipeId ===
+                                    formulario.adversarioEquipeId;
+
                                 setFormulario({
                                     ...formulario,
-                                    equipeId: evento.target.value,
-                                })
-                            }
+                                    equipeId,
+                                    adversarioEquipeId: conflito
+                                        ? ""
+                                        : formulario.adversarioEquipeId,
+                                    adversario: conflito
+                                        ? ""
+                                        : formulario.adversario,
+                                });
+                            }}
                             required
                             fullWidth
                         >
-                            {equipes.map((equipe) => (
+                            {equipesElegiveis.map((equipe) => (
                                 <MenuItem
                                     key={equipe.id}
                                     value={equipe.id}
@@ -655,7 +1044,53 @@ function Jogos() {
                         </TextField>
 
                         <TextField
+                            select
+                            label="Equipe adversária"
+                            value={formulario.adversarioEquipeId}
+                            onChange={(evento) => {
+                                const adversarioEquipeId =
+                                    evento.target.value;
+
+                                const equipeAdversaria = equipes.find(
+                                    (equipe) =>
+                                        equipe.id === adversarioEquipeId,
+                                );
+
+                                setFormulario({
+                                    ...formulario,
+                                    adversarioEquipeId,
+                                    adversario: equipeAdversaria
+                                        ? equipeAdversaria.nome
+                                        : formulario.adversarioEquipeId
+                                            ? ""
+                                            : formulario.adversario,
+                                });
+                            }}
+                            helperText="Escolha uma equipe cadastrada para marcar o scout dos dois times."
+                            fullWidth
+                        >
+                            <MenuItem value="">
+                                Outro adversário (digitar nome)
+                            </MenuItem>
+
+                            {equipesElegiveis
+                                .filter(
+                                    (equipe) =>
+                                        equipe.id !== formulario.equipeId,
+                                )
+                                .map((equipe) => (
+                                    <MenuItem
+                                        key={equipe.id}
+                                        value={equipe.id}
+                                    >
+                                        {equipe.nome} · {equipe.categoria}
+                                    </MenuItem>
+                                ))}
+                        </TextField>
+
+                        <TextField
                             label="Adversário"
+                            disabled={formulario.adversarioEquipeId.length > 0}
                             value={formulario.adversario}
                             onChange={(evento) =>
                                 setFormulario({
@@ -669,7 +1104,82 @@ function Jogos() {
                         />
 
                         <TextField
+                            select
+                            label="Torneio (opcional)"
+                            value={formulario.torneioId}
+                            onChange={(evento) => {
+                                const torneioId = evento.target.value;
+
+                                const torneio = torneios.find(
+                                    (item) => item.id === torneioId,
+                                );
+
+                                const permitidas =
+                                    torneio?.equipesIds ?? [];
+
+                                const restringe = permitidas.length > 0;
+
+                                const casaInvalida =
+                                    restringe &&
+                                    !permitidas.includes(
+                                        formulario.equipeId,
+                                    );
+
+                                const visitanteInvalido =
+                                    restringe &&
+                                    formulario.adversarioEquipeId !== "" &&
+                                    !permitidas.includes(
+                                        formulario.adversarioEquipeId,
+                                    );
+
+                                setFormulario({
+                                    ...formulario,
+                                    torneioId,
+                                    equipeId: casaInvalida
+                                        ? ""
+                                        : formulario.equipeId,
+                                    adversarioEquipeId:
+                                        visitanteInvalido || casaInvalida
+                                            ? ""
+                                            : formulario.adversarioEquipeId,
+                                    adversario:
+                                        visitanteInvalido || casaInvalida
+                                            ? ""
+                                            : formulario.adversario,
+                                    melhorDe: torneio
+                                        ? 1
+                                        : formulario.melhorDe,
+                                    pontosPorSet: torneio
+                                        ? String(torneio.pontosPorSet ?? 15)
+                                        : formulario.pontosPorSet,
+                                    competicao: torneio
+                                        ? torneio.nome
+                                        : formulario.competicao,
+                                    local:
+                                        torneio && !formulario.local.trim()
+                                            ? torneio.local ?? ""
+                                            : formulario.local,
+                                });
+                            }}
+                            fullWidth
+                        >
+                            <MenuItem value="">
+                                Nenhum
+                            </MenuItem>
+
+                            {torneios.map((torneio) => (
+                                <MenuItem
+                                    key={torneio.id}
+                                    value={torneio.id}
+                                >
+                                    {torneio.nome} · {torneio.formato}
+                                </MenuItem>
+                            ))}
+                        </TextField>
+
+                        <TextField
                             label="Competição"
+                            disabled={formulario.torneioId.length > 0}
                             value={formulario.competicao}
                             onChange={(evento) =>
                                 setFormulario({
@@ -717,9 +1227,35 @@ function Jogos() {
                                     key={formato}
                                     value={formato}
                                 >
-                                    Melhor de {formato} sets
+                                    {rotuloMelhorDe(formato)}
                                 </MenuItem>
                             ))}
+                        </TextField>
+
+                        <TextField
+                            select
+                            label="Pontos por set"
+                            value={formulario.pontosPorSet}
+                            onChange={(evento) =>
+                                setFormulario({
+                                    ...formulario,
+                                    pontosPorSet: evento.target.value,
+                                })
+                            }
+                            helperText="Padrão: 25 pontos (15 no set decisivo)"
+                            fullWidth
+                        >
+                            <MenuItem value="">
+                                Padrão
+                            </MenuItem>
+
+                            <MenuItem value="12">
+                                12 pontos
+                            </MenuItem>
+
+                            <MenuItem value="15">
+                                15 pontos
+                            </MenuItem>
                         </TextField>
 
                         <TextField
